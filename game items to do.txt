@@ -1,5 +1,0 @@
-ITEMS TO WORK ON:
-1. Setup GitHub Pages
-2. Create a bot to test the game and its features
-3. Add a third special bubble to survival mode
-4. 
