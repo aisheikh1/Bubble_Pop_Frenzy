@@ -1,0 +1,793 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Bubble Pop Frenzy</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Inter:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      background: linear-gradient(180deg, #FDEB71, #F8D800);
+      background-size: 400% 400%;
+      animation: gradientCycle 20s ease infinite;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      margin: 0;
+      overflow: hidden;
+      user-select: none; /* Prevent text selection */
+      -webkit-user-select: none; /* Safari */
+      -moz-user-select: none; /* Firefox */
+      -ms-user-select: none; /* IE10+ */
+    }
+    @keyframes gradientCycle {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+    .fancy-title {
+      font-family: 'Fredoka One', cursive;
+      color: #FF5733; /* A vibrant orange-red */
+      text-shadow: 
+        -2px -2px 0 #FFF,  
+        2px -2px 0 #FFF,
+        -2px 2px 0 #FFF,
+        2px 2px 0 #FFF,
+        4px 4px 0 #FFC300; /* Yellow border */
+      font-size: 2.5em; /* Large size */
+      letter-spacing: 2px;
+      margin-bottom: 10px;
+    }
+    canvas {
+      border: 4px solid #4A235A; /* Dark purple border */
+      border-radius: 15px;
+      background-color: rgba(255, 255, 255, 0.8); /* Semi-transparent white */
+      box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+      touch-action: none; /* Prevent default touch actions like scrolling */
+    }
+    .game-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 15px;
+      padding: 20px;
+      background: rgba(255, 255, 255, 0.4);
+      border-radius: 20px;
+      box-shadow: 0 8px 32px 0 rgba( 31, 38, 135, 0.37 );
+      backdrop-filter: blur( 10px );
+      -webkit-backdrop-filter: blur( 10px );
+      border: 1px solid rgba( 255, 255, 255, 0.18 );
+    }
+    .info-bar {
+      display: flex;
+      justify-content: space-around;
+      width: 100%;
+      max-width: 500px;
+      font-size: 1.5em;
+      font-weight: bold;
+      color: #4A235A;
+      text-shadow: 1px 1px 0 rgba(255,255,255,0.7);
+    }
+    .message-box {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: linear-gradient(145deg, #6C3483, #4A235A); /* Purple gradient */
+        color: white;
+        padding: 30px;
+        border-radius: 15px;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.7);
+        text-align: center;
+        z-index: 1000;
+        min-width: 300px;
+        max-width: 90%;
+        border: 2px solid #8E44AD; /* Lighter purple border */
+        display: none; /* Hidden by default */
+        animation: fadeIn 0.3s ease-out;
+    }
+    .message-box h2 {
+        font-family: 'Fredoka One', cursive;
+        font-size: 2.2em;
+        margin-bottom: 15px;
+        color: #FFD700; /* Gold color for heading */
+        text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+    }
+    .message-box p {
+        font-size: 1.2em;
+        margin-bottom: 25px;
+        line-height: 1.5;
+    }
+    .message-box button {
+        background-color: #FF5733; /* Vibrant orange for buttons */
+        color: white;
+        padding: 12px 25px;
+        border: none;
+        border-radius: 8px;
+        font-size: 1.1em;
+        font-weight: bold;
+        cursor: pointer;
+        transition: background-color 0.3s ease, transform 0.1s ease;
+        margin: 0 10px;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+    }
+    .message-box button:hover {
+        background-color: #E04E2F; /* Darker orange on hover */
+        transform: translateY(-2px);
+    }
+    .message-box button:active {
+        transform: translateY(0);
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+    }
+    .urgent-message {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-family: 'Fredoka One', cursive;
+      font-size: 3em;
+      color: #FFF;
+      text-shadow: 
+        -3px -3px 0 #FF5733,  
+        3px -3px 0 #FF5733,
+        -3px 3px 0 #FF5733,
+        3px 3px 0 #FF5733,
+        6px 6px 0 #8E44AD; /* Purple outline */
+      z-index: 1001;
+      opacity: 0;
+      animation: fadeAndScale 2s forwards;
+      pointer-events: none; /* Allow clicks to pass through */
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translate(-50%, -60%); }
+        to { opacity: 1; transform: translate(-50%, -50%); }
+    }
+    @keyframes fadeAndScale {
+      0% { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
+      20% { opacity: 1; transform: translate(-50%, -50%) scale(1.1); }
+      80% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+      100% { opacity: 0; transform: translate(-50%, -50%) scale(1.2); }
+    }
+    @keyframes shake {
+      0% { transform: translateX(0); }
+      25% { transform: translateX(-5px); }
+      50% { transform: translateX(5px); }
+      75% { transform: translateX(-5px); }
+      100% { transform: translateX(0); }
+    }
+    .shake-active {
+      animation: shake 0.2s ease-in-out;
+    }
+  </style>
+</head>
+<body>
+  <div class="game-container">
+    <div class="info-bar">
+      <span id="scoreDisplay">Score: 0</span>
+      <span id="timerDisplay">Time: 60s</span>
+      <span id="survivalMissesDisplay" style="display:none;">Misses: 0</span>
+    </div>
+    <canvas id="gameCanvas"></canvas>
+  </div>
+
+  <div id="messageBox" class="message-box">
+    <h2 id="messageBoxTitle"></h2>
+    <p id="messageBoxContent"></p>
+    <div id="messageBoxButtons"></div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const scoreDisplay = document.getElementById('scoreDisplay');
+    const timerDisplay = document.getElementById('timerDisplay');
+    const survivalMissesDisplay = document.getElementById('survivalMissesDisplay');
+    const messageBox = document.getElementById('messageBox');
+    const messageBoxTitle = document.getElementById('messageBoxTitle');
+    const messageBoxContent = document.getElementById('messageBoxContent');
+    const messageBoxButtons = document.getElementById('messageBoxButtons');
+
+    let bubbles = [];
+    let score = 0;
+    let gameInterval;
+    let gameTimer = 60; // Classic mode timer
+    let gameRunning = false;
+    let lastSpawnTime = 0;
+    let spawnInterval = 1000; // milliseconds between bubble spawns
+    const BASE_BUBBLE_RADIUS = 30;
+    const MIN_BUBBLE_RADIUS = 15; // For difficulty scaling
+    const MAX_BUBBLE_SPEED = 2; // Max base speed
+    const MIN_BUBBLE_SPEED = 0.5; // Min base speed
+
+    // Game Mode variables
+    let gameMode = 'classic'; // 'classic' or 'survival'
+    const MAX_MISSES = 3; // Max misses allowed in Survival Mode
+    let missedBubblesCount = 0;
+    let survivalTimeElapsed = 0;
+    let survivalGracePeriodLeft = 5; // 5 seconds grace period
+    let isGracePeriodActive = false;
+
+    // Combo System
+    let comboCount = 0;
+    const COMBO_THRESHOLD_FREEZE = 10;
+    let freezeBubbleQueued = false; // Flag to indicate a freeze bubble should spawn next
+
+    // Freeze Power-up
+    let freezeActive = false;
+    let freezeTimer = 0;
+    const FREEZE_DURATION = 5; // seconds
+    let frenzyBubblesToSpawn = 0; // Number of bubbles to spawn during frenzy
+
+    // Urgent Messages
+    let urgentMessageTimeout;
+
+    // Explosions for decoy bubbles
+    let explosions = [];
+
+    // --- Bubble and Explosion Classes ---
+
+    class Bubble {
+      constructor(x, y, radius, type, speed) {
+        this.x = x;
+        this.y = y;
+        this.radius = radius;
+        this.type = type; // 'normal', 'double', 'decoy', 'freeze'
+        this.color = this.getColor(type);
+        this.vy = speed; // Vertical speed
+        this.taps = 0; // For double-tap bubbles
+        this.isPopped = false; // Flag to prevent multiple pops
+        this.glowStrength = 0; // For decoy/freeze glow
+        this.glowDirection = 1; // 1 for increasing, -1 for decreasing
+      }
+
+      getColor(type) {
+        switch (type) {
+          case 'normal': return `hsl(${Math.random() * 360}, 70%, 60%)`;
+          case 'double': return '#FFD700'; // Gold
+          case 'decoy': return '#FF0000'; // Red
+          case 'freeze': return '#00FFFF'; // Cyan
+          default: return 'gray';
+        }
+      }
+
+      draw() {
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+
+        // Gradient fill for bubbles
+        const gradient = ctx.createRadialGradient(this.x - this.radius / 3, this.y - this.radius / 3, 0, this.x, this.y, this.radius);
+        gradient.addColorStop(0, `rgba(255, 255, 255, 0.7)`); // Highlight
+        gradient.addColorStop(0.3, this.color);
+        gradient.addColorStop(1, `rgba(0, 0, 0, 0.3)`); // Shadow
+
+        ctx.fillStyle = gradient;
+        ctx.fill();
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = `rgba(0, 0, 0, 0.3)`;
+        ctx.stroke();
+
+        // Glow effect for decoy and freeze bubbles
+        if (this.type === 'decoy' || this.type === 'freeze') {
+            ctx.shadowBlur = this.glowStrength;
+            ctx.shadowColor = this.type === 'decoy' ? 'red' : 'cyan';
+            ctx.fillStyle = this.color; // Fill again to apply shadow
+            ctx.fill(); // Fill again with color for shadow
+            ctx.shadowBlur = 0; // Reset shadow blur
+        }
+        
+        // Text for double-tap bubbles
+        if (this.type === 'double') {
+          ctx.fillStyle = 'white';
+          ctx.font = `${this.radius * 0.8}px Fredoka One`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText('2', this.x, this.y);
+        }
+
+        // Lightning for freeze bubbles
+        if (this.type === 'freeze') {
+            ctx.strokeStyle = 'white';
+            ctx.lineWidth = 2;
+            const size = this.radius * 0.7;
+            const offset = this.radius * 0.2;
+            ctx.beginPath();
+            ctx.moveTo(this.x - size / 2, this.y - size / 2);
+            ctx.lineTo(this.x + offset, this.y - size / 2 + offset);
+            ctx.lineTo(this.x - offset, this.y + size / 2 - offset);
+            ctx.lineTo(this.x + size / 2, this.y + size / 2);
+            ctx.stroke();
+        }
+      }
+
+      updateGlow() {
+        if (this.type === 'decoy' || this.type === 'freeze') {
+            this.glowStrength += this.glowDirection * 0.5; // Adjust speed of glow
+            if (this.glowStrength > 10 || this.glowStrength < 0) {
+                this.glowDirection *= -1; // Reverse direction
+            }
+        }
+      }
+
+      update() {
+        this.y += this.vy;
+        this.updateGlow();
+      }
+    }
+
+    class Particle {
+      constructor(x, y, color, size, speedX, speedY) {
+        this.x = x;
+        this.y = y;
+        this.color = color;
+        this.size = size;
+        this.speedX = speedX;
+        this.speedY = speedY;
+        this.alpha = 1;
+        this.gravity = 0.05;
+      }
+
+      draw() {
+        ctx.globalAlpha = this.alpha;
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+        ctx.fillStyle = this.color;
+        ctx.fill();
+        ctx.globalAlpha = 1;
+      }
+
+      update() {
+        this.speedY += this.gravity;
+        this.x += this.speedX;
+        this.y += this.speedY;
+        this.alpha -= 0.02; // Fade out
+      }
+    }
+
+    class Explosion {
+      constructor(x, y, radius, color) {
+        this.x = x;
+        this.y = y;
+        this.particles = [];
+        this.initParticles(radius, color);
+        this.isActive = true;
+      }
+
+      initParticles(radius, color) {
+        const numParticles = 20; // Adjust for more/fewer particles
+        for (let i = 0; i < numParticles; i++) {
+          const angle = Math.random() * Math.PI * 2;
+          const speed = Math.random() * (radius / 10) + 1; // Speed relative to bubble size
+          const speedX = Math.cos(angle) * speed;
+          const speedY = Math.sin(angle) * speed;
+          const size = Math.random() * (radius / 5) + 1; // Size relative to bubble size
+          this.particles.push(new Particle(this.x, this.y, color, size, speedX, speedY));
+        }
+      }
+
+      draw() {
+        this.particles.forEach(p => p.draw());
+      }
+
+      update() {
+        this.particles.forEach(p => p.update());
+        this.particles = this.particles.filter(p => p.alpha > 0.1 && p.size > 0.5); // Remove faded/small particles
+
+        if (this.particles.length === 0) {
+          this.isActive = false; // Mark for removal
+        }
+      }
+    }
+
+
+    // --- Game Logic Functions ---
+
+    function startGame(mode) {
+      gameMode = mode;
+      resetGameState();
+      gameRunning = true;
+      
+      // Show/hide relevant info displays
+      if (gameMode === 'classic') {
+        timerDisplay.style.display = 'inline';
+        survivalMissesDisplay.style.display = 'none';
+      } else { // survival mode
+        timerDisplay.style.display = 'none';
+        survivalMissesDisplay.style.display = 'inline';
+        isGracePeriodActive = true;
+        survivalGracePeriodLeft = 5; // Reset grace period
+        survivalMissesDisplay.textContent = `Misses: (Grace)`; // Indicate grace period in UI
+      }
+
+      gameInterval = setInterval(gameLoop, 1000 / 60); // 60 FPS
+      lastSpawnTime = performance.now(); // Initialize last spawn time
+    }
+
+    function resetGameState() {
+      bubbles = [];
+      score = 0;
+      gameTimer = 60;
+      missedBubblesCount = 0;
+      survivalTimeElapsed = 0;
+      comboCount = 0;
+      freezeActive = false;
+      freezeTimer = 0;
+      freezeBubbleQueued = false;
+      frenzyBubblesToSpawn = 0;
+      explosions = []; // Clear any active explosions
+      scoreDisplay.textContent = `Score: ${score}`;
+      timerDisplay.textContent = `Time: ${gameTimer}s`;
+      survivalMissesDisplay.textContent = `Misses: ${missedBubblesCount}`;
+      cancelUrgentMessage(); // Clear any pending urgent messages
+    }
+
+    function gameLoop() {
+      if (!gameRunning) return;
+
+      const currentTime = performance.now();
+      const deltaTime = currentTime - lastSpawnTime;
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear canvas
+
+      // Update and draw explosions
+      explosions.forEach(explosion => explosion.update());
+      explosions = explosions.filter(explosion => explosion.isActive); // Remove inactive explosions
+      explosions.forEach(explosion => explosion.draw());
+
+      // Update and draw bubbles
+      for (let i = bubbles.length - 1; i >= 0; i--) {
+        const bubble = bubbles[i];
+        bubble.update();
+        bubble.draw();
+
+        // Remove bubbles that go off-screen
+        if (bubble.y - bubble.radius > canvas.height) {
+          if (!bubble.isPopped) { // Only count as miss if not popped
+            if (gameMode === 'survival' && !isGracePeriodActive) {
+              missedBubblesCount++;
+              shakeScreen();
+              survivalMissesDisplay.textContent = `Misses: ${missedBubblesCount}`;
+              if (missedBubblesCount >= MAX_MISSES) {
+                gameOver();
+                return;
+              }
+            }
+          }
+          bubbles.splice(i, 1);
+        }
+      }
+
+      // Handle bubble spawning
+      if (deltaTime > spawnInterval && frenzyBubblesToSpawn === 0) {
+        spawnBubble();
+        lastSpawnTime = currentTime;
+      }
+
+      // Handle frenzy bubble spawning
+      if (frenzyBubblesToSpawn > 0) {
+        for (let i = 0; i < 5 && frenzyBubblesToSpawn > 0; i++) { // Spawn a burst
+            spawnBubble('normal', true); // Force normal bubbles for frenzy
+            frenzyBubblesToSpawn--;
+        }
+        if (frenzyBubblesToSpawn === 0) {
+            // All frenzy bubbles spawned, reset spawn interval for normal flow
+            lastSpawnTime = currentTime;
+        }
+      }
+
+      // Update timers based on game mode
+      if (gameMode === 'classic') {
+        updateClassicModeTimer();
+      } else { // survival mode
+        updateSurvivalModeTimer();
+      }
+
+      // Handle Freeze Power-up
+      if (freezeActive) {
+        freezeTimer -= (1 / 60); // Decrement based on FPS
+        timerDisplay.textContent = `Frenzy: ${Math.max(0, freezeTimer).toFixed(1)}s`; // Show frenzy timer
+        if (freezeTimer <= 0) {
+          freezeActive = false;
+          spawnInterval = 1000; // Reset spawn interval
+          bubbles.forEach(b => b.vy = b.originalVy || b.vy); // Restore original speeds
+          showUrgentMessage("BACK TO NORMAL!");
+          // Restore correct timer display for classic mode, or hide for survival
+          if (gameMode === 'classic') {
+              timerDisplay.textContent = `Time: ${gameTimer}s`;
+          } else {
+              timerDisplay.style.display = 'none'; // Survival mode doesn't show timer during normal play
+          }
+        }
+      }
+    }
+
+    function updateClassicModeTimer() {
+      // Classic mode timer updates every second
+      if (Math.floor(gameTimer) > Math.floor((gameTimer * 60 - 1) / 60)) { // Check for second tick
+        gameTimer--;
+        timerDisplay.textContent = `Time: ${gameTimer}s`;
+      }
+      if (gameTimer <= 0) {
+        gameOver();
+      }
+    }
+
+    function updateSurvivalModeTimer() {
+        if (isGracePeriodActive) {
+            survivalGracePeriodLeft -= (1 / 60); // Decrement based on FPS
+            if (survivalGracePeriodLeft <= 0) {
+                isGracePeriodActive = false;
+                survivalTimeElapsed = 0; // Start actual timer
+                survivalMissesDisplay.textContent = `Misses: ${missedBubblesCount}`; // Update display
+            } else {
+                survivalMissesDisplay.textContent = `Misses: (Grace)`; // Keep grace period indicator
+            }
+        } else {
+            survivalTimeElapsed += (1 / 60); // Increment every frame
+            // Check for difficulty increase every 10 seconds
+            if (Math.floor(survivalTimeElapsed) % 10 === 0 && Math.floor(survivalTimeElapsed) !== 0 && Math.floor(survivalTimeElapsed) !== lastDifficultyIncreaseTime) {
+                increaseDifficulty();
+                lastDifficultyIncreaseTime = Math.floor(survivalTimeElapsed); // Prevent multiple increases in same second
+            }
+        }
+    }
+    let lastDifficultyIncreaseTime = 0; // To prevent multiple difficulty increases within the same second
+
+    function increaseDifficulty() {
+        // Increase spawn rate (decrease interval)
+        spawnInterval = Math.max(200, spawnInterval * 0.9); // Don't go below 200ms
+
+        // Increase bubble speed for newly spawned bubbles
+        // Current bubble speeds are already handled by their individual vy, this adjusts future bubbles
+        
+        // Decrease bubble size (min radius)
+        // This won't affect existing bubbles, but new ones will be smaller on average
+        // The bubble spawn logic randomly picks a radius within BASE_BUBBLE_RADIUS and a min.
+        // So, if we want them to get smaller, we need to adjust the range or min.
+        // For simplicity now, let's say the base speed for new bubbles increases.
+    }
+
+
+    function spawnBubble(type = 'random', forceNormal = false) {
+      let bubbleType;
+      if (forceNormal) {
+          bubbleType = 'normal';
+      } else if (freezeBubbleQueued) {
+          bubbleType = 'freeze';
+          freezeBubbleQueued = false; // Reset the flag
+      } else {
+          const rand = Math.random();
+          if (gameMode === 'classic') {
+              if (rand < 0.7) bubbleType = 'normal'; // 70% normal
+              else if (rand < 0.85) bubbleType = 'double'; // 15% double
+              else if (rand < 0.95) bubbleType = 'decoy'; // 10% decoy
+              else bubbleType = 'freeze'; // 5% freeze
+          } else { // Survival mode - higher chance of special bubbles over time
+              let specialBubbleChance = 0.3 + (survivalTimeElapsed / 60) * 0.2; // Increases over time
+              specialBubbleChance = Math.min(specialBubbleChance, 0.7); // Cap at 70% special
+
+              if (rand < (1 - specialBubbleChance)) bubbleType = 'normal';
+              else if (rand < (1 - specialBubbleChance) + (specialBubbleChance * 0.35)) bubbleType = 'double'; // 35% of special
+              else if (rand < (1 - specialBubbleChance) + (specialBubbleChance * 0.70)) bubbleType = 'decoy'; // 35% of special
+              else bubbleType = 'freeze'; // 30% of special
+          }
+      }
+
+      const radius = Math.max(MIN_BUBBLE_RADIUS, BASE_BUBBLE_RADIUS - (gameMode === 'survival' ? (survivalTimeElapsed / 20) * 5 : 0)); // Bubbles get smaller in survival
+      const x = Math.random() * (canvas.width - radius * 2) + radius;
+      const speed = Math.random() * MAX_BUBBLE_SPEED + MIN_BUBBLE_SPEED + (gameMode === 'survival' ? (survivalTimeElapsed / 10) * 0.1 : 0); // Speed up in survival
+      const newBubble = new Bubble(x, canvas.height + radius, radius, bubbleType, speed);
+      newBubble.originalVy = speed; // Store original speed for freeze power-up
+      bubbles.push(newBubble);
+    }
+
+    function handleBubblePop(event) {
+      if (!gameRunning) return;
+
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = canvas.width / rect.width;
+      const scaleY = canvas.height / rect.height;
+
+      const clientX = event.clientX || event.touches[0].clientX;
+      const clientY = event.clientY || event.touches[0].clientY;
+
+      const mouseX = (clientX - rect.left) * scaleX;
+      const mouseY = (clientY - rect.top) * scaleY;
+
+      for (let i = bubbles.length - 1; i >= 0; i--) {
+        const bubble = bubbles[i];
+        const dist = Math.sqrt((mouseX - bubble.x)**2 + (mouseY - bubble.y)**2);
+
+        if (dist < bubble.radius && !bubble.isPopped) {
+          bubble.isPopped = true; // Mark as popped to prevent re-popping in same frame
+
+          switch (bubble.type) {
+            case 'normal':
+              score += 10;
+              comboCount++;
+              if (comboCount >= COMBO_THRESHOLD_FREEZE) {
+                  freezeBubbleQueued = true;
+                  showUrgentMessage("COMBO! FREEZE BUBBLE NEXT!");
+              }
+              break;
+            case 'double':
+              bubble.taps++;
+              if (bubble.taps === 2) {
+                score += 20;
+                comboCount++;
+                if (comboCount >= COMBO_THRESHOLD_FREEZE) {
+                    freezeBubbleQueued = true;
+                    showUrgentMessage("COMBO! FREEZE BUBBLE NEXT!");
+                }
+              } else {
+                // If it's a double-tap bubble and only one tap, don't remove yet
+                bubble.isPopped = false; // Allow further taps
+                return; // Exit function to keep bubble
+              }
+              break;
+            case 'decoy':
+                // *** UPDATED: Score resets to 0 as per new requirement ***
+                score = 0; 
+                comboCount = 0; // Reset combo
+                // *** UPDATED: Create explosion and show message ***
+                explosions.push(new Explosion(bubble.x, bubble.y, bubble.radius, 'orange')); // Orange for bomb blast
+                showUrgentMessage("You popped the decoy bubble! Your score resets to 0!");
+                break;
+            case 'freeze':
+              freezeActive = true;
+              freezeTimer = FREEZE_DURATION;
+              spawnInterval = 200; // Rapid spawn during frenzy
+              frenzyBubblesToSpawn = 25; // Spawn 25 bubbles for frenzy
+              bubbles.forEach(b => b.vy = b.vy * 0.1); // Slow down existing bubbles
+              showUrgentMessage("FRENZY TIME!");
+              break;
+          }
+          scoreDisplay.textContent = `Score: ${score}`;
+          bubbles.splice(i, 1); // Remove popped bubble
+          return; // Only pop one bubble per click
+        }
+      }
+      // If a click misses all bubbles in Survival Mode, count as a miss
+      if (gameMode === 'survival' && !isGracePeriodActive) {
+          if (!event.target.closest('.message-box')) { // Don't count clicks on message box as misses
+              missedBubblesCount++;
+              shakeScreen();
+              survivalMissesDisplay.textContent = `Misses: ${missedBubblesCount}`;
+              if (missedBubblesCount >= MAX_MISSES) {
+                  gameOver();
+              }
+          }
+      }
+    }
+
+    function gameOver() {
+      gameRunning = false;
+      clearInterval(gameInterval);
+      let finalMessage;
+      if (gameMode === 'classic') {
+        finalMessage = `Time's up! Your final score is: ${score}`;
+      } else { // survival mode
+        finalMessage = `Game Over! You missed ${MAX_MISSES} bubbles. Your final score is: ${score}`;
+      }
+      showMessageBox(
+        "Game Over!",
+        finalMessage,
+        { label: "Play Again", action: () => {
+            hideMessageBox();
+            // Show mode selection again
+            showMessageBox(
+                "Select Game Mode",
+                "Classic: Pop bubbles against a 60-second timer!\nSurvival: Pop as many as you can before missing 3 bubbles!",
+                { label: "Classic Mode", action: () => {
+                    hideMessageBox();
+                    startGame('classic');
+                }},
+                { label: "Survival Mode", action: () => {
+                    hideMessageBox();
+                    startGame('survival');
+                }}
+            );
+        }}
+      );
+    }
+
+    function showMessageBox(title, content, ...buttons) {
+        messageBoxTitle.textContent = title;
+        messageBoxContent.textContent = content;
+        messageBoxButtons.innerHTML = ''; // Clear existing buttons
+
+        buttons.forEach(btnInfo => {
+            const button = document.createElement('button');
+            button.textContent = btnInfo.label;
+            button.onclick = btnInfo.action;
+            messageBoxButtons.appendChild(button);
+        });
+
+        messageBox.style.display = 'block';
+    }
+
+    function hideMessageBox() {
+        messageBox.style.display = 'none';
+    }
+
+    function showUrgentMessage(message) {
+      cancelUrgentMessage(); // Clear any existing message
+      const msgElement = document.createElement('div');
+      msgElement.className = 'urgent-message';
+      msgElement.textContent = message;
+      document.body.appendChild(msgElement);
+
+      urgentMessageTimeout = setTimeout(() => {
+        msgElement.remove();
+      }, 2000); // Message fades out over 2 seconds
+    }
+
+    function cancelUrgentMessage() {
+      if (urgentMessageTimeout) {
+        clearTimeout(urgentMessageTimeout);
+        urgentMessageTimeout = null;
+      }
+      const existingMsg = document.querySelector('.urgent-message');
+      if (existingMsg) {
+        existingMsg.remove();
+      }
+    }
+
+    function shakeScreen() {
+      const container = document.querySelector('.game-container');
+      container.classList.add('shake-active');
+      setTimeout(() => {
+        container.classList.remove('shake-active');
+      }, 200); // Match animation duration
+    }
+
+    // --- Event Listeners and Initialization ---
+
+    canvas.addEventListener('pointerdown', handleBubblePop); // Use pointerdown for touch/mouse
+
+    window.addEventListener('load', () => {
+      resizeCanvas(); // Set initial canvas size
+      showMessageBox(
+        `<span class="fancy-title">Welcome Bubble-Pop Warriors!</span>`,
+        "Hope you have a bubble-popping fun time!",
+        { label: "Continue", action: () => {
+          hideMessageBox(); // Hide the welcome message box
+          // After 'Continue', show mode selection
+          showMessageBox(
+            "Select Game Mode",
+            "Classic: Pop bubbles against a 60-second timer!\nSurvival: Pop as many as you can before missing 3 bubbles!",
+            { label: "Classic Mode", action: () => {
+                hideMessageBox(); // Hide mode selection box
+                startGame('classic');
+              }
+            },
+            { label: "Survival Mode", action: () => {
+                hideMessageBox(); // Hide mode selection box
+                startGame('survival');
+              }
+            }
+          );
+        }}
+      );
+    });
+
+    // Event listener for window resize to adjust canvas
+    window.addEventListener("resize", resizeCanvas);
+
+    /**
+     * Resizes the canvas to fit the container while maintaining aspect ratio and max width.
+     */
+    function resizeCanvas() {
+      const container = canvas.parentElement;
+      // Canvas width should be up to 95% of container, but no more than 500px, responsive
+      canvas.width = Math.min(container.clientWidth * 0.95, 500);
+      // Maintain aspect ratio, height is 60% of width
+      canvas.height = canvas.width * 0.6;
+    }
+  </script>
+</body>
+</html>
