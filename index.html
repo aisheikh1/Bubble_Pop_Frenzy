@@ -6,20 +6,21 @@
   <title>Bubble Pop Frenzy</title>
   
   <!-- PWA Manifest -->
-  <link rel="manifest" href="/manifest.json">
+  <link rel="manifest" href="manifest.json">
   
   <!-- Theme color for mobile browsers -->
   <meta name="theme-color" content="#FDEB71">
+  <meta name="mobile-web-app-capable" content="yes">
   
   <!-- Apple Touch Icons -->
-  <link rel="apple-touch-icon" href="/icons/icon-192x192.png">
+  <link rel="apple-touch-icon" href="icons/icon-192x192.png">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="BubblePop">
   
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/css2?family=Bangers&family=Fredoka+One&family=Inter:wght@400;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/src/styles/styles.css">
+  <link rel="stylesheet" href="src/styles/styles.css">
 </head>
 <body>
   <div class="game-container">
@@ -47,13 +48,13 @@
     <canvas id="gameCanvas"></canvas>
   </div>
 
-  <script type="module" src="/src/js/main.js"></script>
+  <script type="module" src="src/js/main.js"></script>
   
   <!-- Service Worker Registration Script -->
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', function() {
-        navigator.serviceWorker.register('/sw.js')
+        navigator.serviceWorker.register('sw.js')
           .then(function(registration) {
             console.log('ServiceWorker registration successful with scope: ', registration.scope);
           }, function(err) {
