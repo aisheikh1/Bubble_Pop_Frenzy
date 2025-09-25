@@ -1,350 +1,333 @@
 // src/js/game.js
 
 import { Bubble, spawnBubble } from './bubbles.js';
-import { showUrgentMessage } from './ui/urgentMessage.js';
+import {
+  showUrgentMessage,
+  showDifficultyEaseUp,
+  showFasterBubbles,
+  showMoreBubbles,
+  showMaximumIntensity,
+  showFreezeEnded,
+  showFreezeReady,
+  showTimeFreeze,
+  showBoom,
+  showOuchPenalty,
+  showDoublePop
+} from './ui/urgentMessage.js';
 import { showMessageBox, hideMessageBox } from './ui/messageBox.js';
+import { FloatingTextEffect } from './effects/FloatingTextEffect.js';
+import { effects } from './effects/EffectManager.js';
+import { GiftUnwrapEffect } from './effects/GiftUnwrapEffect.js';
+import { BombPrimedEffect } from './effects/BombPrimedEffect.js';
+import { ExplosionEffect } from './effects/ExplosionEffect.js';
+import { ScreenFlashEffect } from './effects/ScreenFlashEffect.js';
 
+// ---------------------------
 // Game State Variables
+// ---------------------------
 let bubbles = [];
 let gameActive = false;
-let classicTimeLeft = 60;
-let survivalTimeElapsed = 0;
-let survivalGracePeriodLeft = 5;
-let isGracePeriodActive = true;
-let score = 0;
-let lastFrameTime = 0;
-let gameMode = 'classic';
-let gameStartTime = 0;
-let maxBubbles = 3;
-let difficultyTimer = 0;
-let missedBubblesCount = 0;
-const MAX_MISSES = 5;
 
-// Combo and Freeze Mode Variables
+// Time & Scoring
+let score = 0;
 let consecutivePops = 0;
+let consecutiveNormalPops = 0;
+
+// Game Modes
+let gameMode = 'classic';
+let classicTimeLeft = 60;
+let classicStartTime = 0;
+let survivalTimeLeft = 60;
+
+// Difficulty Scaling
+let bubbleSpeedMultiplier = 1;
+let bubbleSpawnInterval = 1000;
+let lastDifficultyIncreaseTime = 0;
+let difficultyLevel = 1;
+let lastIncreaseType = 'spawn';
+let bubblesMissed = 0;
+let totalBubblesSpawned = 0;
+let playerMissRate = 0;
+
+// Power-ups & Special Bubbles
 let freezeBubbleSpawnPending = false;
 let isFreezeModeActive = false;
 let freezeModeTimeLeft = 0;
-const FREEZE_DURATION = 5; // seconds for freeze mode
-const COMBO_NEEDED = 10; // Consecutive pops for freeze power-up
+let bombBubbleSpawnPending = false;
+let lastBombSpawnTime = 0;
 
-// Constants for bubble types and chances
-const DECOY_CHANCE_MAX = 0.2;
-const DOUBLE_TAP_CHANCE_MAX = 0.15;
-let decoyChance = 0;
-let doubleTapChance = 0;
+// Visual Effects
+let lastDifficultyEffectTime = 0;
+let flashTriggered = false;
 
-let gameTimerInterval; // To hold the setInterval ID
-
-// DOM elements that will be passed from main.js or obtained within the module itself
-// For now, we'll assume they are passed as arguments to startGame and gameLoop.
+// Game Configuration
+let gameConfig = {};
 let gameCanvas;
-let gameContext; // 2D rendering context
-let scoreDisplay;
-let modeDisplay;
-let classicTimerDisplay;
-let survivalStatsDisplay;
-let survivalTimeElapsedDisplay;
-let survivalMissesDisplay;
-let gameInfo;
+let gameCtx;
 
+// Animation Frame
+let animFrameId = null;
+let lastFrameTime = 0;
 
-/**
- * Centralized game over logic.
- */
-function endGame() {
-  gameActive = false;
-  if (gameTimerInterval) {
-    clearInterval(gameTimerInterval);
-  }
-  let gameOverTitle = 'Game Over!';
-  let gameOverText = `Your Score: ${score}`;
+// ---------------------------
+// Game Constants
+// ---------------------------
+const GAME_CONSTANTS = {
+  // Survival Mode Penalties & Bonuses
+  TIME_BONUS_PER_NORMAL_POP: 0.5,
+  TIME_BONUS_PER_DOUBLE_TAP: 1,
+  TIME_PENALTY_PER_DECOY: 5,
+  TIME_PENALTY_PER_MISS: 2,
 
-  if (gameMode === 'survival') {
-    gameOverText = `Your Score: ${score}\nYou missed ${missedBubblesCount} bubbles!`;
-  }
+  // Difficulty Scaling
+  DIFFICULTY_INCREASE_INTERVAL: 25000,
+  MAX_SPEED_MULTIPLIER: 3.5,
+  MIN_SPAWN_INTERVAL: 450,
+  MAX_ALLOWED_MISS_RATE: 0.2,
 
-  showMessageBox(
-    gameOverTitle,
-    gameOverText,
-    { label: "Play Again", action: () => startGame(gameCanvas, gameContext, scoreDisplay, modeDisplay, classicTimerDisplay, survivalStatsDisplay, survivalTimeElapsedDisplay, survivalMissesDisplay, gameInfo, gameMode) }, // Pass current mode
-    { label: "Classic Mode", action: () => startGame(gameCanvas, gameContext, scoreDisplay, modeDisplay, classicTimerDisplay, survivalStatsDisplay, survivalTimeElapsedDisplay, survivalMissesDisplay, gameInfo, 'classic') },
-    { label: "Survival Mode", action: () => startGame(gameCanvas, gameContext, scoreDisplay, modeDisplay, classicTimerDisplay, survivalStatsDisplay, survivalTimeElapsedDisplay, survivalMissesDisplay, gameInfo, 'survival') }
-  );
-  if (gameInfo) gameInfo.style.display = "none";
-  if (gameCanvas) gameCanvas.style.display = "none";
-}
+  // Power-up & Bomb
+  FREEZE_DURATION: 5,
+  COMBO_NEEDED: 10,
+  BOMB_SPAWN_INTERVAL: 20000,
+};
+
+// ---------------------------
+// Game Functions
+// ---------------------------
 
 /**
- * Increases game difficulty in survival mode based on time elapsed.
+ * Handles the logic for increasing the game's difficulty in Survival Mode.
+ * @param {number} now - The current time.
  */
-function increaseDifficulty() {
-  if (gameMode !== 'survival' || isFreezeModeActive) return;
-
-  const timeSurvived = (performance.now() - gameStartTime) / 1000;
-
-  maxBubbles = Math.min(8, 3 + Math.floor(timeSurvived / 15));
-
-  if (timeSurvived - difficultyTimer > 10) {
-    difficultyTimer = timeSurvived;
-    bubbles.forEach(b => {
-      b.speedX *= 1.05;
-      b.speedY *= 1.05;
-      b.wobbleSpeed *= 1.05;
-    });
+function handleDifficultyIncrease(now) {
+  // Visual warning 2 seconds before difficulty increase (single flash)
+  if (!flashTriggered && now - lastDifficultyIncreaseTime > GAME_CONSTANTS.DIFFICULTY_INCREASE_INTERVAL - 2000) {
+    effects.add(new ScreenFlashEffect('yellow', 0.3));
+    flashTriggered = true;
   }
+  
+  // Actual difficulty increase
+  if (now - lastDifficultyIncreaseTime > GAME_CONSTANTS.DIFFICULTY_INCREASE_INTERVAL) {
+    difficultyLevel++;
+    flashTriggered = false; // Reset the flag for the next interval
+    
+    // Adaptive speed increase logic
+    let speedIncreaseAmount = 0.4;
+    let showMessage = true;
 
-  decoyChance = Math.min(DECOY_CHANCE_MAX, timeSurvived / 200);
-  doubleTapChance = Math.min(DOUBLE_TAP_CHANCE_MAX, timeSurvived / 250);
-}
-
-/**
- * The main game loop, updates and draws game elements.
- * @param {DOMHighResTimeStamp} currentTime - The current time provided by requestAnimationFrame.
- */
-function gameLoop(currentTime) {
-  if (!gameActive) return;
-
-  if (!lastFrameTime) lastFrameTime = currentTime;
-  const deltaTime = (currentTime - lastFrameTime) / 1000;
-  lastFrameTime = currentTime;
-
-  gameContext.clearRect(0, 0, gameCanvas.width, gameCanvas.height);
-
-  if (gameMode === 'survival') {
-    increaseDifficulty();
-  }
-
-  // Filter out dead bubbles first to avoid processing them
-  bubbles = bubbles.filter(b => !b.dead);
-
-  const bubbleUpdateContext = {
-    gameMode,
-    isFreezeModeActive,
-    isGracePeriodActive,
-    MAX_MISSES, // MAX_MISSES is still passed for the urgent message
-    showUrgentMessage,
-    endGame,
-    canvas: gameCanvas // Pass canvas to Bubble.update
-  };
-
-  for (const bubble of bubbles) {
-    // Pass relevant game state and functions to bubble.update
-    const wasMissed = bubble.update(deltaTime, currentTime,
-      bubbleUpdateContext.gameMode,
-      bubbleUpdateContext.isFreezeModeActive,
-      bubbleUpdateContext.isGracePeriodActive,
-      bubbleUpdateContext.MAX_MISSES,
-      bubbleUpdateContext.showUrgentMessage,
-      bubbleUpdateContext.endGame,
-      bubbleUpdateContext.canvas
-    );
-
-    // IMPORTANT CHANGE: Check if the bubble.update signaled a miss
-    if (wasMissed) {
-        missedBubblesCount++; // Increment the module-level missedBubblesCount
-        if (survivalMissesDisplay) survivalMissesDisplay.textContent = `Misses: ${missedBubblesCount}`;
-
-        // Add the canvas shake effect here
-        if (gameCanvas) {
-          gameCanvas.style.transform = 'translateX(5px)';
-          setTimeout(() => {
-              gameCanvas.style.transform = 'translateX(-5px)';
-              setTimeout(() => {
-                  gameCanvas.style.transform = '';
-              }, 50);
-          }, 50);
-        }
-        // showUrgentMessage for missed bubble is now triggered directly by the bubble.update method itself.
-        // It should still have the correct context from the parameters.
-
-        if (missedBubblesCount >= MAX_MISSES) {
-            endGame(); // Call endGame from game.js
-        }
+    if (lastIncreaseType === 'spawn') {
+      // Check miss rate and adjust speed increase
+      if (playerMissRate > GAME_CONSTANTS.MAX_ALLOWED_MISS_RATE) {
+        speedIncreaseAmount = 0.3; // Player struggling, smaller increase
+        showDifficultyEaseUp(difficultyLevel);
+        showMessage = false;
+      } else {
+        speedIncreaseAmount = 0.5; // Player doing well, larger increase
+      }
+      
+      bubbleSpeedMultiplier = Math.min(bubbleSpeedMultiplier + speedIncreaseAmount, GAME_CONSTANTS.MAX_SPEED_MULTIPLIER);
+      if (showMessage) {
+        showFasterBubbles(difficultyLevel);
+      }
+      effects.add(new ScreenFlashEffect('lime', 0.4));
+      lastIncreaseType = 'speed';
+      
+    } else {
+      // Adaptive spawn rate increase logic
+      if (playerMissRate > GAME_CONSTANTS.MAX_ALLOWED_MISS_RATE) {
+        bubbleSpawnInterval = Math.max(bubbleSpawnInterval * 0.85, GAME_CONSTANTS.MIN_SPAWN_INTERVAL); // Slower spawn increase
+        showDifficultyEaseUp(difficultyLevel);
+        showMessage = false;
+      } else {
+        bubbleSpawnInterval = Math.max(bubbleSpawnInterval * 0.7, GAME_CONSTANTS.MIN_SPAWN_INTERVAL); // Normal increase
+      }
+      
+      // Visual feedback
+      effects.add(new ScreenFlashEffect('cyan', 0.4));
+      if (showMessage) {
+        const spawnRate = (1000 / bubbleSpawnInterval).toFixed(1);
+        showMoreBubbles(difficultyLevel);
+      }
+      lastIncreaseType = 'spawn';
     }
-
-    bubble.draw(gameContext); // Pass ctx to bubble.draw
+    
+    lastDifficultyIncreaseTime = now;
+    
+    // Special effects at certain levels
+    if (difficultyLevel % 3 === 0) {
+      showMaximumIntensity();
+      effects.add(new ScreenFlashEffect('orange', 0.6));
+    }
   }
-
-  const spawnContext = {
-    canvas: gameCanvas,
-    gameMode,
-    gameStartTime,
-    isFreezeModeActive,
-    freezeBubbleSpawnPending,
-    maxBubbles,
-    decoyChance,
-    doubleTapChance
-  };
-
-  if (!isFreezeModeActive && !freezeBubbleSpawnPending && bubbles.length < maxBubbles) {
-      const newBubble = spawnBubble('normal', false, spawnContext);
-      if (newBubble) bubbles.push(newBubble);
-  } else if (freezeBubbleSpawnPending && !bubbles.some(b => b.type === 'freeze')) {
-      const newBubble = spawnBubble('freeze', false, spawnContext);
-      if (newBubble) bubbles.push(newBubble);
-  }
-
-
-  requestAnimationFrame(gameLoop);
 }
 
-
 /**
- * Starts a new game session.
- * @param {HTMLCanvasElement} canvasElement - The game canvas DOM element.
- * @param {CanvasRenderingContext2D} ctxElement - The 2D rendering context of the canvas.
- * @param {HTMLElement} displayScore - The score display DOM element.
- * @param {HTMLElement} displayMode - The mode display DOM element.
- * @param {HTMLElement} displayClassicTimer - The classic timer display DOM element.
- * @param {HTMLElement} displaySurvivalStats - The survival stats display DOM element.
- * @param {HTMLElement} displaySurvivalTimeElapsed - The survival time elapsed display DOM element.
- * @param {HTMLElement} displaySurvivalMisses - The survival misses display DOM element.
- * @param {HTMLElement} infoGame - The game info container DOM element.
+ * Initializes and starts the game.
+ * @param {object} config - Configuration object with DOM elements.
  * @param {string} mode - The game mode ('classic' or 'survival').
  */
-function startGame(canvasElement, ctxElement, displayScore, displayMode, classicTimerDisplay,
-                   displaySurvivalStats, displaySurvivalTimeElapsed, displaySurvivalMisses, infoGame, mode) {
+function startGame(config, mode) {
+  // Make sure the canvas is visible when the game starts
+  config.canvas.style.display = 'block';
 
-  // Assign DOM elements to module-level variables
-  gameCanvas = canvasElement;
-  gameContext = ctxElement;
-  scoreDisplay = displayScore;
-  modeDisplay = displayMode;
-  classicTimerDisplay = classicTimerDisplay;
-  survivalStatsDisplay = displaySurvivalStats;
-  survivalTimeElapsedDisplay = displaySurvivalTimeElapsed;
-  survivalMissesDisplay = displaySurvivalMisses;
-  gameInfo = infoGame;
+  gameConfig = config;
+  gameCanvas = config.canvas;
+  gameCtx = config.ctx;
+  gameMode = mode;
 
-  // Clear any existing timer interval to prevent multiple timers running
-  if (gameTimerInterval) {
-    clearInterval(gameTimerInterval);
-  }
-
-  gameMode = mode || 'classic';
-  gameActive = true;
-  score = 0;
+  // Reset game state
   bubbles = [];
-  gameStartTime = performance.now();
-  lastFrameTime = 0;
-  difficultyTimer = 0;
-  decoyChance = 0;
-  doubleTapChance = 0;
-  maxBubbles = 3;
-
+  score = 0;
   consecutivePops = 0;
+  consecutiveNormalPops = 0;
   freezeBubbleSpawnPending = false;
   isFreezeModeActive = false;
   freezeModeTimeLeft = 0;
-
-  // Reset missed bubbles count here at the start of a new game
-  missedBubblesCount = 0;
-
+  bombBubbleSpawnPending = false;
+  lastBombSpawnTime = 0;
+  bubbleSpeedMultiplier = 1;
+  lastDifficultyIncreaseTime = performance.now();
+  bubbleSpawnInterval = 1000;
+  lastIncreaseType = 'spawn';
+  difficultyLevel = 1;
+  lastDifficultyEffectTime = 0;
+  flashTriggered = false;
+  
+  // Reset adaptive difficulty variables
+  bubblesMissed = 0;
+  totalBubblesSpawned = 0;
+  playerMissRate = 0;
+  
+  // Reset timers based on mode
   if (gameMode === 'classic') {
     classicTimeLeft = 60;
-    if (classicTimerDisplay) classicTimerDisplay.style.display = "block";
-    if (survivalStatsDisplay) survivalStatsDisplay.style.display = "none";
-    if (classicTimerDisplay) classicTimerDisplay.textContent = `Time: ${classicTimeLeft}s`;
-  } else { // survival mode
-    classicTimeLeft = 999;
-    survivalTimeElapsed = 0;
-    survivalGracePeriodLeft = 5;
-    isGracePeriodActive = true;
-    if (classicTimerDisplay) classicTimerDisplay.style.display = "none";
-    if (survivalStatsDisplay) survivalStatsDisplay.style.display = "flex";
-    if (survivalTimeElapsedDisplay) survivalTimeElapsedDisplay.textContent = `Time: ${survivalGracePeriodLeft}s (Grace)`;
-    // Ensure this display is updated correctly on game start
-    if (survivalMissesDisplay) survivalMissesDisplay.textContent = `Misses: ${missedBubblesCount}`;
+    classicStartTime = performance.now();
+  } else if (gameMode === 'survival') {
+    survivalTimeLeft = 60;
   }
+  
+  // Show game info bar and update UI for the first time
+  updateUI();
+  gameConfig.gameInfo.style.display = 'flex';
+  gameConfig.modeDisplay.textContent = gameMode === 'classic' ? 'Classic Mode' : 'Survival Mode';
 
-  hideMessageBox();
-  if (gameInfo) gameInfo.style.display = "flex";
-  if (modeDisplay) {
-    modeDisplay.style.display = "block";
-    modeDisplay.textContent = `Mode: ${gameMode.charAt(0).toUpperCase() + gameMode.slice(1)}`;
-  }
-  if (gameCanvas) gameCanvas.style.display = "block";
-  if (scoreDisplay) scoreDisplay.textContent = `Score: ${score}`;
-
-  const initialSpawnContext = {
-    canvas: gameCanvas,
-    gameMode,
-    gameStartTime,
-    isFreezeModeActive, // Should be false here
-    freezeBubbleSpawnPending, // Should be false here
-    maxBubbles,
-    decoyChance,
-    doubleTapChance
-  };
-
-  for (let i = 0; i < maxBubbles; i++) {
-    const newBubble = spawnBubble('normal', false, initialSpawnContext);
-    if (newBubble) bubbles.push(newBubble);
-  }
-
-  requestAnimationFrame(gameLoop);
-
-  gameTimerInterval = setInterval(() => {
-    if (!gameActive) {
-        clearInterval(gameTimerInterval);
-        return;
-    }
-
-    if (gameMode === 'classic') {
-      classicTimeLeft--;
-      if (classicTimerDisplay) classicTimerDisplay.textContent = `Time: ${classicTimeLeft}s`;
-      if (classicTimeLeft <= 0) {
-        endGame();
-      }
-    } else { // Survival mode
-      if (isFreezeModeActive) {
-        freezeModeTimeLeft--;
-        if (survivalTimeElapsedDisplay) survivalTimeElapsedDisplay.textContent = `Time: ${freezeModeTimeLeft}s (FRENZY)`;
-        if (survivalMissesDisplay) survivalMissesDisplay.textContent = `Misses: ${missedBubblesCount}`;
-        if (freezeModeTimeLeft <= 0) {
-            isFreezeModeActive = false;
-            bubbles = [];
-            lastFrameTime = performance.now();
-            const postFreezeSpawnContext = {
-              canvas: gameCanvas,
-              gameMode, // current game mode
-              gameStartTime,
-              isFreezeModeActive: false, // frenzy is active for these spawns
-              freezeBubbleSpawnPending: false,
-              decoyChance: 0, // No special bubbles during frenzy
-              doubleTapChance: 0 // No special bubbles during frenzy
-            };
-            for (let j = 0; j < maxBubbles; j++) { // Changed to maxBubbles for post-frenzy spawn
-              const newBubble = spawnBubble('normal', false, postFreezeSpawnContext);
-              if (newBubble) bubbles.push(newBubble);
-            }
-            showUrgentMessage("BACK TO NORMAL!", 1000);
-            if (survivalTimeElapsedDisplay) survivalTimeElapsedDisplay.textContent = `Time: ${survivalTimeElapsed}s`;
-        }
-      } else if (isGracePeriodActive) {
-        survivalGracePeriodLeft--;
-        if (survivalGracePeriodLeft <= 0) {
-          isGracePeriodActive = false;
-          survivalTimeElapsed = 0;
-          if (survivalTimeElapsedDisplay) survivalTimeElapsedDisplay.textContent = `Time: ${survivalTimeElapsed}s`;
-          if (survivalMissesDisplay) survivalMissesDisplay.textContent = `Misses: ${missedBubblesCount}`;
-        } else {
-          if (survivalTimeElapsedDisplay) survivalTimeElapsedDisplay.textContent = `Time: ${survivalGracePeriodLeft}s (Grace)`;
-        }
-      } else { // Normal survival mode (after grace, not in frenzy)
-        survivalTimeElapsed++;
-        if (survivalTimeElapsedDisplay) survivalTimeElapsedDisplay.textContent = `Time: ${survivalTimeElapsed}s`;
-      }
-    }
-  }, 1000);
+  // Start the game loop
+  gameActive = true;
+  lastFrameTime = performance.now();
+  if (animFrameId) cancelAnimationFrame(animFrameId);
+  animFrameId = requestAnimationFrame(gameLoop);
 }
 
 /**
- * Handles pointer/mouse down events on the canvas.
- * This function will be called by main.js after it gets the event.
- * @param {number} x - The x-coordinate of the pointer event relative to the canvas.
- * @param {number} y - The y-coordinate of the pointer event relative to the canvas.
+ * Main game loop.
+ * @param {number} now - The current time provided by requestAnimationFrame.
+ */
+function gameLoop(now) {
+  animFrameId = requestAnimationFrame(gameLoop);
+
+  const deltaTime = (now - lastFrameTime) / 1000;
+  lastFrameTime = now;
+
+  if (!gameActive) {
+    return;
+  }
+
+  // Update game timers
+  if (gameMode === 'classic') {
+    classicTimeLeft -= deltaTime;
+    if (classicTimeLeft <= 0) {
+      classicTimeLeft = 0;
+      endGame();
+    }
+  } else if (gameMode === 'survival') {
+    if (isFreezeModeActive) {
+      freezeModeTimeLeft -= deltaTime;
+      if (freezeModeTimeLeft <= 0) {
+        isFreezeModeActive = false;
+        bubbles = [];
+        showFreezeEnded();
+      }
+    } else {
+      survivalTimeLeft -= deltaTime;
+      if (survivalTimeLeft <= 0) {
+        survivalTimeLeft = 0;
+        endGame();
+      }
+    }
+    
+    // Calculate player miss rate for adaptive difficulty
+    if (totalBubblesSpawned > 0) {
+      playerMissRate = bubblesMissed / totalBubblesSpawned;
+    }
+
+    // Call the new difficulty function
+    if (gameMode === 'survival' && !isFreezeModeActive) {
+      handleDifficultyIncrease(now);
+    }
+  }
+
+  // Check for bubble spawning
+  if (!isFreezeModeActive) {
+    // Normal bubble spawning
+    const spawned = spawnBubble(now, gameCanvas, bubbles, gameMode, null, bubbleSpeedMultiplier, bubbleSpawnInterval);
+    if (spawned) {
+      totalBubblesSpawned++;
+    }
+    
+    // Bomb bubble spawning
+    if (gameMode === 'survival' && now - lastBombSpawnTime > GAME_CONSTANTS.BOMB_SPAWN_INTERVAL) {
+        bombBubbleSpawnPending = true;
+        lastBombSpawnTime = now;
+    }
+  }
+  
+  // Spawn pending bubbles
+  if (freezeBubbleSpawnPending) {
+    spawnBubble(now, gameCanvas, bubbles, gameMode, 'freeze');
+    freezeBubbleSpawnPending = false;
+  }
+  if (bombBubbleSpawnPending) {
+    spawnBubble(now, gameCanvas, bubbles, gameMode, 'bomb');
+    bombBubbleSpawnPending = false;
+  }
+  
+  // Update & draw bubbles
+  gameCtx.clearRect(0, 0, gameCanvas.width, gameCtx.height);
+  
+  for (let i = bubbles.length - 1; i >= 0; i--) {
+    const bubble = bubbles[i];
+    
+    const wasMissed = bubble.update(deltaTime, now, gameMode, isFreezeModeActive, showUrgentMessage, endGame, gameCanvas);
+    
+    if (wasMissed) {
+      if (gameMode === 'survival') {
+        survivalTimeLeft -= GAME_CONSTANTS.TIME_PENALTY_PER_MISS;
+        effects.add(new FloatingTextEffect(gameCanvas.width / 2, 50, `-${GAME_CONSTANTS.TIME_PENALTY_PER_MISS}s`, '#ff5555'));
+        bubblesMissed++;
+        consecutivePops = 0;
+        consecutiveNormalPops = 0;
+      }
+    }
+
+    if (bubble.dead) {
+      bubbles.splice(i, 1);
+    } else {
+      bubble.draw(gameCtx, now);
+    }
+  }
+  
+  // Update & draw effects
+  effects.update(deltaTime, now);
+  effects.draw(gameCtx);
+
+  // Update UI with current game info
+  updateUI();
+}
+
+/**
+ * Handles pointerdown events on the canvas for popping bubbles.
+ * @param {number} x - The x-coordinate of the pointer.
+ * @param {number} y - The y-coordinate of the pointer.
  */
 function handleCanvasPointerDown(x, y) {
   if (!gameActive) return;
@@ -353,60 +336,168 @@ function handleCanvasPointerDown(x, y) {
 
   for (let i = bubbles.length - 1; i >= 0; i--) {
     const bubble = bubbles[i];
-    const dist = Math.sqrt((bubble.x - x) ** 2 + (bubble.y - y) ** 2);
+    const distance = Math.sqrt((x - bubble.x) ** 2 + (y - bubble.y) ** 2);
 
-    if (dist < bubble.radius && !bubble.popped) {
+    if (distance <= bubble.radius) {
       if (bubble.type === 'decoy') {
-        score = 0;
-        if (scoreDisplay) scoreDisplay.textContent = `Score: ${score}`;
+        score -= 50;
+        survivalTimeLeft -= GAME_CONSTANTS.TIME_PENALTY_PER_DECOY;
+        effects.add(new ScreenFlashEffect('red'));
+        showOuchPenalty();
+        effects.add(new FloatingTextEffect(gameCanvas.width / 2, 50, `-${GAME_CONSTANTS.TIME_PENALTY_PER_DECOY}s`, '#ff5555'));
+        
         bubble.popped = true;
         poppedAny = true;
         consecutivePops = 0;
-        showUrgentMessage("SCORE RESET!");
+        consecutiveNormalPops = 0;
         break;
       } else if (bubble.type === 'freeze') {
-        if (gameMode === 'survival' && !isFreezeModeActive) {
-            isFreezeModeActive = true;
-            freezeBubbleSpawnPending = false;
-            freezeModeTimeLeft = FREEZE_DURATION;
-            bubbles = [];
-            const frenzySpawnContext = {
-              canvas: gameCanvas,
-              gameMode, // current game mode
-              gameStartTime,
-              isFreezeModeActive: true, // frenzy is active for these spawns
-              freezeBubbleSpawnPending: false,
-              decoyChance: 0, // No special bubbles during frenzy
-              doubleTapChance: 0 // No special bubbles during frenzy
-            };
-            for (let j = 0; j < 25; j++) {
-                const newBubble = spawnBubble('normal', true, frenzySpawnContext);
-                if (newBubble) bubbles.push(newBubble);
-            }
-            showUrgentMessage("FRENZY TIME!", 2000);
-            // scoreDisplay update is handled by normal popping, not here for frenzy start
-            lastFrameTime = performance.now();
+        if (!isFreezeModeActive) {
+          isFreezeModeActive = true;
+          freezeModeTimeLeft = GAME_CONSTANTS.FREEZE_DURATION;
+          effects.add(new ScreenFlashEffect('blue'));
+          showTimeFreeze();
+          effects.add(new GiftUnwrapEffect(bubble.x, bubble.y, bubble.radius, bubble.color));
         }
         bubble.popped = true;
         poppedAny = true;
         consecutivePops = 0;
+        consecutiveNormalPops = 0;
         break;
-      } else if (bubble.pop()) {
-        score += 10;
-        if (scoreDisplay) scoreDisplay.textContent = `Score: ${score}`;
+      } else if (bubble.type === 'bomb') {
+        effects.add(new ExplosionEffect(bubble.x, bubble.y, 200, 'orange'));
+        effects.add(new ScreenFlashEffect('orange'));
+        showBoom();
+        bubbles = [];
+        
+        bubble.popped = true;
         poppedAny = true;
-        consecutivePops++;
-        if (gameMode === 'survival' && consecutivePops % COMBO_NEEDED === 0 && !freezeBubbleSpawnPending && !isFreezeModeActive) {
-            freezeBubbleSpawnPending = true;
-            showUrgentMessage("FREEZE POWER-UP READY!");
+        consecutivePops = 0;
+        consecutiveNormalPops = 0;
+        break;
+      }
+      
+      if (bubble.pop(performance.now())) {
+        score += 10;
+        poppedAny = true;
+        
+        if (gameMode === 'survival') {
+            if (bubble.type === 'normal') {
+                consecutiveNormalPops++;
+                if (consecutiveNormalPops % 2 === 0) {
+                    survivalTimeLeft += 1;
+                    effects.add(new FloatingTextEffect(gameCanvas.width / 2, 50, "+1s", bubble.color));
+                }
+            } else if (bubble.type === 'double') {
+                survivalTimeLeft += GAME_CONSTANTS.TIME_BONUS_PER_DOUBLE_TAP;
+                effects.add(new FloatingTextEffect(gameCanvas.width / 2, 50, "+1s", bubble.initialColor));
+                consecutiveNormalPops = 0;
+            } else {
+                 consecutiveNormalPops = 0;
+            }
+
+            survivalTimeLeft = Math.min(survivalTimeLeft, 90); 
         }
+
+        consecutivePops++;
+        if (gameMode === 'survival' && (consecutivePops % GAME_CONSTANTS.COMBO_NEEDED === 0) && !freezeBubbleSpawnPending && !isFreezeModeActive) {
+          freezeBubbleSpawnPending = true;
+          showFreezeReady();
+        }
+        
+        if (bubble.tapsNeeded === 2) {
+          score += 10;
+          showDoublePop();
+        }
+
+        // Vibrate on successful pop
+        if ('vibrate' in navigator) {
+          navigator.vibrate(50);
+        }
+
         break;
       }
     }
   }
-  if (!poppedAny && gameMode === 'survival' && !isFreezeModeActive) {
-      consecutivePops = 0;
+
+  if (!poppedAny) {
+    consecutivePops = 0;
+    consecutiveNormalPops = 0;
   }
 }
 
-export { startGame, handleCanvasPointerDown };
+/**
+ * Updates the game's UI elements with the current state.
+ */
+function updateUI() {
+  gameConfig.scoreDisplay.textContent = `Score: ${score}`;
+  
+  if (gameMode === 'classic') {
+    gameConfig.classicTimerDisplay.textContent = `Time: ${Math.floor(classicTimeLeft)}s`;
+    gameConfig.classicTimerDisplay.style.display = 'inline';
+    gameConfig.survivalStatsDisplay.style.display = 'none';
+  } else if (gameMode === 'survival') {
+    gameConfig.survivalStatsDisplay.style.display = 'inline';
+    gameConfig.survivalTimeElapsedDisplay.textContent = `Time: ${Math.floor(survivalTimeLeft)}s`;
+    gameConfig.survivalMissesDisplay.style.display = 'none';
+  }
+}
+
+/**
+ * Ends the current game session.
+ */
+function endGame() {
+  gameActive = false;
+  cancelAnimationFrame(animFrameId);
+
+  if (gameMode === 'classic') {
+    showMessageBox(
+      "Time's Up!",
+      `Your final score is: ${score} points`, [{
+        label: "Play Again",
+        action: () => showModeSelection()
+      }]
+    );
+  } else if (gameMode === 'survival') {
+    showMessageBox(
+      "Time's Up!",
+      `Your final score is: ${score} points`, [{
+        label: "Try Again",
+        action: () => showModeSelection()
+      }]
+    );
+  }
+}
+
+/**
+ * Shows the mode selection screen.
+ */
+function showModeSelection() {
+  hideMessageBox();
+  gameConfig.gameInfo.style.display = 'none';
+  showMessageBox(
+    "Select Mode",
+    "Choose your game mode:", [{
+      label: "Classic Mode",
+      action: () => {
+        hideMessageBox();
+        startGame(gameConfig, 'classic');
+      }
+    }, {
+      label: "Survival Mode",
+      action: () => {
+        hideMessageBox();
+        startGame(gameConfig, 'survival');
+      }
+    }]
+  );
+}
+
+// Export functions to be used in other modules
+export {
+  startGame,
+  gameLoop,
+  handleCanvasPointerDown,
+  endGame,
+  updateUI
+};

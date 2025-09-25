@@ -1,6 +1,6 @@
 // src/js/main.js
 
-import { startGame, handleCanvasPointerDown } from './game.js'; // Import handleCanvasPointerDown
+import { startGame, handleCanvasPointerDown, updateUI } from './game.js'; // Import handleCanvasPointerDown and updateUI
 import { showMessageBox, hideMessageBox } from './ui/messageBox.js';
 import { resizeCanvas } from './utils/resizeCanvas.js';
 
@@ -40,64 +40,45 @@ window.addEventListener('load', () => {
   survivalStatsDisplay = document.getElementById("survivalStatsDisplay");
   survivalTimeElapsedDisplay = document.getElementById("survivalTimeElapsedDisplay");
   survivalMissesDisplay = document.getElementById("survivalMissesDisplay");
-
   messageBox = document.getElementById("messageBox");
   messageTitle = document.getElementById("messageTitle");
   messageText = document.getElementById("messageText");
   buttonContainer = document.getElementById("buttonContainer");
-
   gameInfo = document.getElementById("gameInfo");
-  gameContainer = document.querySelector('.game-container'); // Used for urgent message positioning
+  gameContainer = document.getElementById("game-container");
 
-  // Initial canvas resize, passing the canvas element
   resizeCanvas(canvas);
-  gameInfo.style.display = "none";
-  canvas.style.display = "none";
 
-  // Show welcome message
+  // Create a single config object to pass to the game logic
+  const gameConfig = {
+    canvas,
+    ctx,
+    scoreDisplay,
+    modeDisplay,
+    classicTimerDisplay,
+    survivalStatsDisplay,
+    survivalTimeElapsedDisplay,
+    survivalMissesDisplay,
+    gameInfo
+  };
+
+
+  // Initial game setup
   showMessageBox(
-    `<span class="fancy-title">Welcome Bubble-Pop Warriors!</span>`,
-    "Hope you have a bubble-popping fun time!",
-    { label: "Continue", action: () => {
-      hideMessageBox(); // Hide the welcome message box
-      // After 'Continue', show mode selection
-      showMessageBox(
-        "Select Game Mode",
-        "Classic: Pop bubbles against a 60-second timer!\nSurvival: Pop as many as you can before missing 5 bubbles!",
-        { label: "Classic Mode", action: () => {
-            hideMessageBox(); // Hide mode selection box
-            startGame(
-              canvas,
-              ctx,
-              scoreDisplay,
-              modeDisplay,
-              classicTimerDisplay,
-              survivalStatsDisplay,
-              survivalTimeElapsedDisplay,
-              survivalMissesDisplay,
-              gameInfo,
-              'classic'
-            );
-          }
-        },
-        { label: "Survival Mode", action: () => {
-            hideMessageBox(); // Hide mode selection box
-            startGame(
-              canvas,
-              ctx,
-              scoreDisplay,
-              modeDisplay,
-              classicTimerDisplay,
-              survivalStatsDisplay,
-              survivalTimeElapsedDisplay,
-              survivalMissesDisplay,
-              gameInfo,
-              'survival'
-            );
-          }
-        }
-      );
-    }}
+    "Bubble Pop Frenzy!",
+    "Select a game mode to begin.", [{
+      label: "Classic Mode",
+      action: () => {
+        hideMessageBox();
+        startGame(gameConfig, 'classic');
+      }
+    }, {
+      label: "Survival Mode",
+      action: () => {
+        hideMessageBox();
+        startGame(gameConfig, 'survival');
+      }
+    }]
   );
 
   // Event listener for window resize to adjust canvas
@@ -110,6 +91,6 @@ window.addEventListener('load', () => {
     const rect = canvas.getBoundingClientRect(); // Get canvas dimensions and position
     const x = e.clientX - rect.left; // Calculate x-coordinate relative to canvas
     const y = e.clientY - rect.top; // Calculate y-coordinate relative to canvas
-    handleCanvasPointerDown(x, y); // Call the game's pointer down handler
+    handleCanvasPointerDown(x, y);
   });
 });
