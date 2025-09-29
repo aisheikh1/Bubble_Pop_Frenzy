@@ -167,12 +167,12 @@ function handleDifficultyIncrease(now) {
  * @param {string} mode - The game mode ('classic' or 'survival').
  */
 function startGame(config, mode) {
-  // Make sure the canvas is visible when the game starts
-  config.canvas.style.display = 'block';
+  // Use CanvasManager for canvas visibility
+  config.canvasManager.show();
 
   gameConfig = config;
-  gameCanvas = config.canvas;
-  gameCtx = config.ctx;
+  gameCanvas = config.canvasManager.element;
+  gameCtx = config.canvasManager.context;
   gameMode = mode;
 
   // Reset game state
@@ -291,8 +291,8 @@ function gameLoop(now) {
     bombBubbleSpawnPending = false;
   }
   
-  // Update & draw bubbles
-  gameCtx.clearRect(0, 0, gameCanvas.width, gameCtx.height);
+  // Update & draw bubbles - Use CanvasManager for clearing
+  gameConfig.canvasManager.clear();
   
   for (let i = bubbles.length - 1; i >= 0; i--) {
     const bubble = bubbles[i];
@@ -449,6 +449,9 @@ function updateUI() {
 function endGame() {
   gameActive = false;
   cancelAnimationFrame(animFrameId);
+
+  // Use CanvasManager to hide the canvas
+  gameConfig.canvasManager.hide();
 
   if (gameMode === 'classic') {
     showMessageBox(
