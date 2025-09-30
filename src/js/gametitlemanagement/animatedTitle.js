@@ -14,6 +14,11 @@ export function initializeGameTitle(titleElement) {
   }
 
   try {
+    // Ensure the title element has the correct text content
+    if (!titleElement.textContent || titleElement.textContent.trim() === '') {
+      titleElement.textContent = "BUBBLE POP FRENZY!";
+    }
+
     // Get random animation type from titleManager
     const animationType = getRandomAnimation();
     
@@ -33,7 +38,7 @@ export function initializeGameTitle(titleElement) {
  */
 function animateTitle(element, animationType) {
   // Store original text content for cleanup
-  const originalContent = element.textContent;
+  const originalContent = element.textContent || "BUBBLE POP FRENZY!";
   const originalHTML = element.innerHTML;
   
   // Clear existing content and apply animation
@@ -47,8 +52,6 @@ function animateTitle(element, animationType) {
     bubbleGum: () => bubbleGumAnimation(element),
     scoreCounter: () => scoreCounterAnimation(element),
     arcadeMarquee: () => arcadeMarqueeAnimation(element),
-    // particleExplosion: () => particleExplosionAnimation(element), // Removed for complexity
-    // popInteraction: () => popInteractionAnimation(element), // Removed for interaction complexity
     bubbleFloat: () => bubbleFloatAnimation(element),
     gelatinousBounce: () => gelatinousBounceAnimation(element),
     neonPulse: () => neonPulseAnimation(element),
@@ -78,7 +81,7 @@ function animateTitle(element, animationType) {
  * Letters appear in bubbles that float gently
  */
 function floatingBubblesAnimation(element) {
-  const text = element.textContent;
+  const text = element.textContent || "BUBBLE POP FRENZY!";
   element.innerHTML = '';
   element.style.display = 'flex';
   element.style.justifyContent = 'center';
@@ -155,7 +158,7 @@ function floatingBubblesAnimation(element) {
  * Letters pop in one by one with bounce effect
  */
 function popInAnimation(element) {
-  const text = element.textContent;
+  const text = element.textContent || "BUBBLE POP FRENZY!";
   element.innerHTML = '';
   element.style.display = 'flex';
   element.style.justifyContent = 'center';
@@ -205,6 +208,8 @@ function popInAnimation(element) {
  */
 function liquidFillAnimation(element) {
   const originalStyle = element.style.cssText;
+  const text = element.textContent || "BUBBLE POP FRENZY!";
+  element.textContent = text; // Ensure text content
   
   element.style.cssText = `
     background: linear-gradient(to top, #ff6b6b 0%, transparent 0%);
@@ -241,6 +246,8 @@ function liquidFillAnimation(element) {
  */
 function bubbleGumAnimation(element) {
   const originalStyle = element.style.cssText;
+  const text = element.textContent || "BUBBLE POP FRENZY!";
+  element.textContent = text; // Ensure text content
   
   element.style.cssText = `
     display: inline-block;
@@ -281,8 +288,8 @@ function bubbleGumAnimation(element) {
  * Numbers count up rapidly before settling
  */
 function scoreCounterAnimation(element) {
-  const finalText = element.textContent;
-  const chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ!@#$%^&*';
+  const finalText = element.textContent || "BUBBLE POP FRENZY!";
+  const chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ! '; // Removed ? symbol
   let iterations = 0;
   const maxIterations = 20;
   
@@ -321,6 +328,8 @@ function scoreCounterAnimation(element) {
  */
 function arcadeMarqueeAnimation(element) {
   const originalStyle = element.style.cssText;
+  const text = element.textContent || "BUBBLE POP FRENZY!";
+  element.textContent = text; // Ensure text content
   
   element.style.cssText = `
     color: #fff;
@@ -365,17 +374,22 @@ function arcadeMarqueeAnimation(element) {
 }
 
 /**
- * 7. Bubble Float Animation
+ * 7. Bubble Float Animation - FIXED
  * Bubbles float up from bottom and pop into position
  */
 function bubbleFloatAnimation(element) {
-  const text = element.textContent;
+  const text = element.textContent || "BUBBLE POP FRENZY!";
   element.innerHTML = '';
   element.style.display = 'flex';
   element.style.justifyContent = 'center';
   element.style.gap = '4px';
 
   const letters = text.split('');
+  
+  // Ensure we have letters to animate
+  if (letters.length === 0) {
+    letters = "BUBBLE POP FRENZY!".split('');
+  }
   
   letters.forEach((letter, index) => {
     const span = document.createElement('span');
@@ -421,6 +435,8 @@ function bubbleFloatAnimation(element) {
  */
 function gelatinousBounceAnimation(element) {
   const originalStyle = element.style.cssText;
+  const text = element.textContent || "BUBBLE POP FRENZY!";
+  element.textContent = text; // Ensure text content
   
   element.style.cssText = `
     display: inline-block;
@@ -452,6 +468,8 @@ function gelatinousBounceAnimation(element) {
  */
 function neonPulseAnimation(element) {
   const originalStyle = element.style.cssText;
+  const text = element.textContent || "BUBBLE POP FRENZY!";
+  element.textContent = text; // Ensure text content
   
   element.style.cssText = `
     background: linear-gradient(45deg, #ff6b6b, #4ecdc4, #45b7d1, #96ceb4);
@@ -488,6 +506,8 @@ function neonPulseAnimation(element) {
  */
 function waterRippleAnimation(element) {
   const originalStyle = element.style.cssText;
+  const text = element.textContent || "BUBBLE POP FRENZY!";
+  element.textContent = text; // Ensure text content
   
   element.style.cssText = `
     display: inline-block;
@@ -534,6 +554,8 @@ function waterRippleAnimation(element) {
  */
 function fallbackAnimation(element) {
   const originalStyle = element.style.cssText;
+  const text = element.textContent || "BUBBLE POP FRENZY!";
+  element.textContent = text; // Ensure text content
   
   element.style.cssText = `
     opacity: 0;
