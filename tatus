@@ -1,0 +1,149 @@
+[33mcommit 6e52b3215155fc60a1b36872ad8f85e43b288f33[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m
+Author: aisheikh1 <asad.i.sheikh@gmail.com>
+Date:   Mon Sep 29 13:32:01 2025 +0100
+
+    bug fix: classic and survival mode buttons not visible.
+
+[33mcommit fda2261639a2e2ac1f273d89ce2964ad7a76f06d[m
+Author: aisheikh1 <asad.i.sheikh@gmail.com>
+Date:   Mon Sep 29 12:45:08 2025 +0100
+
+    centralising canvas amangement into a single file - previously canvas management spread across multiple files. Previous approach made maintainability a massive issue!
+
+[33mcommit d5a379dc92d7f8bd89d1bbb2d13b359e9d968e4a[m
+Author: aisheikh1 <asad.i.sheikh@gmail.com>
+Date:   Sun Sep 28 22:19:07 2025 +0100
+
+    removing game title heading, previous fix did not work
+
+[33mcommit 764fb8b0be6e12cbbba8bc0165c8d5396e2a2b05[m
+Author: aisheikh1 <asad.i.sheikh@gmail.com>
+Date:   Sun Sep 28 21:18:29 2025 +0100
+
+    removing first heading of game in big bold letters
+
+[33mcommit e9af7ef288716c87ec3997d6ef05775291e81395[m
+Author: aisheikh1 <asad.i.sheikh@gmail.com>
+Date:   Thu Sep 25 20:15:49 2025 +0100
+
+    resolving remaining sw issues, failing to cache certain files, sw get 404 error
+
+[33mcommit 17bebec712f10ba0cf4c8328b51547ee5b1933cc[m
+Author: aisheikh1 <asad.i.sheikh@gmail.com>
+Date:   Thu Sep 25 20:09:59 2025 +0100
+
+    fixing service worker issues
+
+[33mcommit 5d6f9e2ab2fadfd76e14303b26d804a7df2e02c5[m
+Author: aisheikh1 <asad.i.sheikh@gmail.com>
+Date:   Thu Sep 25 19:57:58 2025 +0100
+
+    updated path references in index.html and manifest.json to resolve failed resource load issues
+
+[33mcommit 28ccb3536bcc787376fd02d16ad6ee0806a5d302[m
+Author: aisheikh1 <asad.i.sheikh@gmail.com>
+Date:   Thu Sep 25 19:40:25 2025 +0100
+
+    Added PWA files and modifications, game still not ready but needs to be installed on android devices for testing
+
+[33mcommit 538528eb83ea9a7952abb702fc9edbde57fc88e3[m
+Author: aisheikh1 <asad.i.sheikh@gmail.com>
+Date:   Wed Aug 27 01:54:06 2025 +0100
+
+    moved index.html out of public folder for gitpages
+
+[33mcommit 627f2ff8870541c2ce5aabe08db81e5ac7e81836[m
+Author: aisheikh1 <asad.i.sheikh@gmail.com>
+Date:   Wed Aug 27 01:38:43 2025 +0100
+
+    game with classic and survival mode
+
+[33mcommit e78bc8ce9f451ef5533abd5f2defe4c01449ae4c[m
+Author: aisheikh1 <asad.i.sheikh@gmail.com>
+Date:   Tue Jul 15 19:42:45 2025 +0100
+
+    initial commit
+
+[33mcommit 75b33760f4adbc8475f6b248cf0dc6ac26f13f90[m
+Author: aisheikh1 <asad.i.sheikh@gmail.com>
+Date:   Tue Jul 15 18:59:07 2025 +0100
+
+    Delete index.html
+
+[33mcommit 168c298c494452255a4970d62a96829fa2c2f625[m
+Author: aisheikh1 <asad.i.sheikh@gmail.com>
+Date:   Tue Jul 15 18:58:09 2025 +0100
+
+    Delete README.md
+
+[33mcommit 3a32e769979f03523662533569e0388fc252a4f9[m
+Author: aisheikh1 <asad.i.sheikh@gmail.com>
+Date:   Sun Jul 13 00:48:09 2025 +0100
+
+    Add files via upload
+
+[33mcommit 690b61568d7347601c1268524d431062e21a9d6c[m
+Author: aisheikh1 <asad.i.sheikh@gmail.com>
+Date:   Sun Jul 13 00:46:19 2025 +0100
+
+    Delete index.html
+
+[33mcommit efbe121fc71b860c5abed152e8c33584a4708c87[m
+Author: aisheikh1 <asad.i.sheikh@gmail.com>
+Date:   Fri Jul 11 14:58:10 2025 +0100
+
+    Add files via upload
+
+[33mcommit 4610094131eaba3b71b11ea6ae2f80b5591064c9[m
+Author: aisheikh1 <asad.i.sheikh@gmail.com>
+Date:   Fri Jul 11 14:56:16 2025 +0100
+
+    Delete index.html
+
+[33mcommit e5e1519d045308fbed21f912c2c4a24ea7f8d4ff[m
+Author: aisheikh1 <asad.i.sheikh@gmail.com>
+Date:   Fri Jul 11 14:55:06 2025 +0100
+
+    Delete index.html.html
+
+[33mcommit 2a6669f64153a6d26417a02dece0d1339f35c305[m
+Author: aisheikh1 <asad.i.sheikh@gmail.com>
+Date:   Fri Jul 4 01:26:12 2025 +0100
+
+    Add files via upload
+
+[33mcommit 9202cff015dbc97a0f05dcb46813c910b36410e1[m
+Author: aisheikh1 <asad.i.sheikh@gmail.com>
+Date:   Fri Jul 4 00:58:08 2025 +0100
+
+    Add files via upload
+
+[33mcommit 48a4b422533edf671d8c8340b3b49c2dad132d85[m
+Author: aisheikh1 <asad.i.sheikh@gmail.com>
+Date:   Fri Jul 4 00:56:54 2025 +0100
+
+    Delete game items to do.txt
+
+[33mcommit e03e9f3f8c75ec0a755d1391331547ff92bb0868[m
+Author: aisheikh1 <asad.i.sheikh@gmail.com>
+Date:   Fri Jul 4 00:50:08 2025 +0100
+
+    Delete Bubble_Pop_Frenzy_v00.4.1.3 - freeze logic.html
+
+[33mcommit 3e251429f1a0f8f5166b2352222b7a09acddc60e[m
+Author: aisheikh1 <asad.i.sheikh@gmail.com>
+Date:   Thu Jul 3 22:31:19 2025 +0100
+
+    Add files via upload
+
+[33mcommit 7b0e82e453fb51c85d0d7d13669f183392fc632e[m
+Author: aisheikh1 <asad.i.sheikh@gmail.com>
+Date:   Thu Jul 3 21:37:26 2025 +0100
+
+    Add files via upload
+
+[33mcommit 05f46d832fe4e155047a2e5074e46c8c2a7b4fa1[m
+Author: aisheikh1 <asad.i.sheikh@gmail.com>
+Date:   Thu Jul 3 21:32:15 2025 +0100
+
+    Initial commit
