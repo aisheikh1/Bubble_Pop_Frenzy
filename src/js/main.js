@@ -3,6 +3,7 @@
 import { startGame, handleCanvasPointerDown, updateUI } from './game.js';
 import { showMessageBox, hideMessageBox } from './ui/messageBox.js';
 import { CanvasManager } from './canvasManager.js';
+import { initializeAnimatedTitle, preloadTitleAnimations } from './gametitlemanagement/index.js';
 
 // Declare variables to hold DOM elements
 export let scoreDisplay;
@@ -17,44 +18,66 @@ export let messageText;
 export let buttonContainer;
 export let gameInfo;
 export let gameContainer;
+export let gameTitleElement;
 
 // Canvas manager will be initialized in the load event
 export let canvasManager;
 
-// Event listener for window load to ensure DOM is ready
-window.addEventListener('load', () => {
-  // Initialize Canvas Manager
-  canvasManager = new CanvasManager("gameCanvas");
+// Title cleanup function
+let titleCleanupFunction = null;
 
-  // Get DOM elements
-  scoreDisplay = document.getElementById("scoreDisplay");
-  modeDisplay = document.getElementById("modeDisplay");
-  classicTimerDisplay = document.getElementById("classicTimerDisplay");
-  survivalStatsDisplay = document.getElementById("survivalStatsDisplay");
-  survivalTimeElapsedDisplay = document.getElementById("survivalTimeElapsedDisplay");
-  survivalMissesDisplay = document.getElementById("survivalMissesDisplay");
-  messageBox = document.getElementById("messageBox");
-  messageTitle = document.getElementById("messageTitle");
-  messageText = document.getElementById("messageText");
-  buttonContainer = document.getElementById("buttonContainer");
-  gameInfo = document.getElementById("gameInfo");
-  gameContainer = document.getElementById("game-container");
+/**
+ * Initialize the animated game title
+ */
+function initializeGameTitle() {
+  try {
+    // Find or create the game title element
+    gameTitleElement = document.querySelector('.game-title');
+    
+    if (!gameTitleElement) {
+      // Create the title element if it doesn't exist
+      const gameHeader = document.createElement('div');
+      gameHeader.className = 'game-header';
+      gameHeader.innerHTML = `
+        <h1 class="game-title">🎯 Bubble Pop Frenzy!</h1>
+        <div class="game-subtitle">Pop bubbles, score points, have fun!</div>
+      `;
+      
+      // Insert at the beginning of game container
+      const gameContainer = document.querySelector('.game-container');
+      if (gameContainer) {
+        gameContainer.insertBefore(gameHeader, gameContainer.firstChild);
+        gameTitleElement = gameHeader.querySelector('.game-title');
+      }
+    }
 
-  // Create a single config object to pass to the game logic
-  const gameConfig = {
-    canvasManager,
-    canvas: canvasManager.element,  // For backward compatibility with existing code
-    ctx: canvasManager.context,     // For backward compatibility with existing code
-    scoreDisplay,
-    modeDisplay,
-    classicTimerDisplay,
-    survivalStatsDisplay,
-    survivalTimeElapsedDisplay,
-    survivalMissesDisplay,
-    gameInfo
-  };
+    // Initialize animated title if element exists
+    if (gameTitleElement) {
+      titleCleanupFunction = initializeAnimatedTitle(gameTitleElement, {
+        fallbackOnError: true,
+        respectReducedMotion: true
+      });
+    }
+  } catch (error) {
+    console.warn('Failed to initialize animated title:', error);
+    // Continue without animated title - non-critical feature
+  }
+}
 
-  // Initial game setup
+/**
+ * Clean up animated title when needed
+ */
+function cleanupGameTitle() {
+  if (titleCleanupFunction && typeof titleCleanupFunction === 'function') {
+    titleCleanupFunction();
+    titleCleanupFunction = null;
+  }
+}
+
+/**
+ * Show the main menu with game mode selection
+ */
+function showMainMenu(gameConfig) {
   showMessageBox(
     "Bubble Pop Frenzy!",
     "Select a game mode to begin.", [{
@@ -71,6 +94,49 @@ window.addEventListener('load', () => {
       }
     }]
   );
+}
+
+// Event listener for window load to ensure DOM is ready
+window.addEventListener('load', () => {
+  // Preload title animations for better performance
+  preloadTitleAnimations();
+
+  // Initialize Canvas Manager
+  canvasManager = new CanvasManager("gameCanvas");
+
+  // Get DOM elements
+  scoreDisplay = document.getElementById("scoreDisplay");
+  modeDisplay = document.getElementById("modeDisplay");
+  classicTimerDisplay = document.getElementById("classicTimerDisplay");
+  survivalStatsDisplay = document.getElementById("survivalStatsDisplay");
+  survivalTimeElapsedDisplay = document.getElementById("survivalTimeElapsedDisplay");
+  survivalMissesDisplay = document.getElementById("survivalMissesDisplay");
+  messageBox = document.getElementById("messageBox");
+  messageTitle = document.getElementById("messageTitle");
+  messageText = document.getElementById("messageText");
+  buttonContainer = document.getElementById("buttonContainer");
+  gameInfo = document.getElementById("gameInfo");
+  gameContainer = document.querySelector(".game-container");
+
+  // Initialize animated game title
+  initializeGameTitle();
+
+  // Create a single config object to pass to the game logic
+  const gameConfig = {
+    canvasManager,
+    canvas: canvasManager.element,  // For backward compatibility with existing code
+    ctx: canvasManager.context,     // For backward compatibility with existing code
+    scoreDisplay,
+    modeDisplay,
+    classicTimerDisplay,
+    survivalStatsDisplay,
+    survivalTimeElapsedDisplay,
+    survivalMissesDisplay,
+    gameInfo
+  };
+
+  // Show main menu
+  showMainMenu(gameConfig);
 
   // Set up pointer handler using canvas manager's element
   canvasManager.element.addEventListener("pointerdown", (e) => {
@@ -79,4 +145,12 @@ window.addEventListener('load', () => {
     const y = e.clientY - rect.top;
     handleCanvasPointerDown(x, y);
   });
+
+  // Add global error handler for better debugging
+  window.addEventListener('error', (event) => {
+    console.error('Global error:', event.error);
+  });
 });
+
+// Export the cleanup function for potential use by other modules
+export { cleanupGameTitle };
