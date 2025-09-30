@@ -1,5 +1,8 @@
 /* src/styles/styles.css */
 
+/* Import title animations */
+@import url('./title-animations.css');
+
 body {
   font-family: 'Inter', sans-serif;
   background: linear-gradient(180deg, #FDEB71, #F8D800);

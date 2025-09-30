@@ -1,0 +1,35 @@
+/* src/styles/title-animations.css */
+
+/* Game header styles for animated title */
+.game-header {
+  text-align: center;
+  z-index: 2;
+  margin-bottom: 2rem;
+}
+
+.game-title {
+  font-family: 'Bangers', cursive;
+  font-size: 2.5rem;
+  color: white;
+  text-shadow: 3px 3px 0 rgba(0, 0, 0, 0.3);
+  margin-bottom: 0.5rem;
+  letter-spacing: 2px;
+}
+
+.game-subtitle {
+  font-family: 'Fredoka One', cursive;
+  font-size: 1.2rem;
+  color: rgba(255, 255, 255, 0.9);
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+/* Mobile responsiveness for title */
+@media (max-width: 480px) {
+  .game-title {
+    font-size: 2rem;
+  }
+  
+  .game-subtitle {
+    font-size: 1rem;
+  }
+}

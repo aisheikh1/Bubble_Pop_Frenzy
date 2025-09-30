@@ -18,9 +18,33 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="BubblePop">
   
-  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Minimal Tailwind-like utilities to replace CDN -->
+  <style>
+    /* Flexbox utilities */
+    .flex { display: flex; }
+    .flex-col { flex-direction: column; }
+    .flex-row { flex-direction: row; }
+    
+    /* Gap utilities */
+    .gap-1 { gap: 0.25rem; }
+    .gap-2 { gap: 0.5rem; }
+    .gap-3 { gap: 0.75rem; }
+    
+    /* Margin utilities */
+    .ml-4 { margin-left: 1rem; }
+    
+    /* Responsive utilities */
+    @media (min-width: 640px) {
+      .sm\:flex-row { flex-direction: row; }
+      .sm\:gap-2 { gap: 0.5rem; }
+    }
+  </style>
+  
   <link href="https://fonts.googleapis.com/css2?family=Bangers&family=Fredoka+One&family=Inter:wght@400;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="src/styles/styles.css">
+  
+  <!-- Favicon to prevent 404 error -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎯</text></svg>">
 </head>
 <body>
   <div class="game-container">
