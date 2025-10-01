@@ -77,78 +77,93 @@ function animateTitle(element, animationType) {
 // ============================================================================
 
 /**
- * 1. Floating Bubbles Animation
- * Letters appear in bubbles that float gently
+ * 1. Floating Bubbles Animation - REVISED
+ * Letters appear in bubbles that float gently, safe for Unicode and layout
  */
 function floatingBubblesAnimation(element) {
-  const text = element.textContent || "BUBBLE POP FRENZY!";
+  // 1. Unicode-safe text acquisition
+  const text = (element.textContent || "BUBBLE POP FRENZY!").trim();
   element.innerHTML = '';
-  element.style.display = 'flex';
-  element.style.justifyContent = 'center';
-  element.style.alignItems = 'center';
-  element.style.gap = '8px';
-  element.style.flexWrap = 'wrap';
-
-  const letters = text.split('');
+  
+  // Set up the container for flex layout
+  element.style.cssText = `
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px; /* Space between words/bubbles */
+    flex-wrap: wrap;
+    font-size: 2.5rem; /* 3. Set an appropriate base font size */
+    font-family: 'Bangers', cursive; /* 2. Explicitly ensure title font is applied */
+  `;
+  
+  // 4. Split text into words, then process each word
+  const words = text.split(/\s+/);
   const cleanups = [];
+  let totalIndex = 0;
 
-  letters.forEach((letter, index) => {
-    const bubble = document.createElement('span');
-    bubble.textContent = letter;
-    bubble.style.cssText = `
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: 40px;
-      height: 40px;
-      border-radius: 50%;
-      background: radial-gradient(circle at 30% 30%, #fff, #ff6b6b);
-      border: 2px solid #fff;
-      font-family: inherit;
-      font-size: inherit;
-      font-weight: bold;
-      color: #333;
-      box-shadow: 0 4px 15px rgba(255, 107, 107, 0.3);
-      animation: floatBubble 3s ease-in-out infinite;
-      animation-delay: ${index * 0.2}s;
-      opacity: 0;
-      animation-fill-mode: forwards;
+  words.forEach((word, wordIndex) => {
+    // Create a container for the word to prevent splitting characters across lines
+    const wordContainer = document.createElement('span');
+    wordContainer.style.cssText = `
+      display: flex;
+      gap: 4px; /* Smaller gap between characters within a word */
+      margin: 0 4px; /* Space between words */
     `;
+    element.appendChild(wordContainer);
 
-    element.appendChild(bubble);
-    
-    // Add CSS keyframes dynamically
-    if (index === 0) {
-      const style = document.createElement('style');
-      style.textContent = `
-        @keyframes floatBubble {
-          0% { 
-            opacity: 0; 
-            transform: translateY(20px) scale(0.8); 
-          }
-          20% { 
-            opacity: 1; 
-            transform: translateY(0) scale(1.1); 
-          }
-          40% { 
-            transform: translateY(-8px) scale(1); 
-          }
-          60% { 
-            transform: translateY(-4px) scale(1.05); 
-          }
-          80% { 
-            transform: translateY(-2px) scale(1); 
-          }
-          100% { 
-            opacity: 1; 
-            transform: translateY(0) scale(1); 
-          }
-        }
+    // 1. Use Array.from for Unicode/Emoji safe splitting
+    const letters = Array.from(word);
+
+    letters.forEach((letter) => {
+      const bubble = document.createElement('span');
+      bubble.textContent = letter;
+      
+      bubble.style.cssText = `
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: radial-gradient(circle at 30% 30%, #fff, #ff6b6b);
+        border: 2px solid #fff;
+        
+        /* 2. Font settings inherited from the main element styles */
+        font-family: inherit;
+        font-size: 1em; /* Use relative size to inherit from parent */
+        font-weight: bold;
+        color: #333;
+        box-shadow: 0 4px 15px rgba(255, 107, 107, 0.3);
+        animation: floatBubble 3s ease-in-out infinite;
+        animation-delay: ${totalIndex * 0.2}s;
+        opacity: 0;
+        animation-fill-mode: forwards;
       `;
-      document.head.appendChild(style);
-      cleanups.push(() => document.head.removeChild(style));
-    }
+      
+      wordContainer.appendChild(bubble);
+      totalIndex++;
+    });
+    
+    // Add a small space (or a dedicated element) between words if needed, 
+    // but the margin on wordContainer handles this.
   });
+
+  // Dynamically add keyframes (only once)
+  if (element.querySelector('span')) {
+    const style = document.createElement('style');
+    style.textContent = `
+      @keyframes floatBubble {
+        0% { opacity: 0; transform: translateY(20px) scale(0.8); }
+        20% { opacity: 1; transform: translateY(0) scale(1.1); }
+        40% { transform: translateY(-8px) scale(1); }
+        60% { transform: translateY(-4px) scale(1.05); }
+        80% { transform: translateY(-2px) scale(1); }
+        100% { opacity: 1; transform: translateY(0) scale(1); }
+      }
+    `;
+    document.head.appendChild(style);
+    cleanups.push(() => document.head.removeChild(style));
+  }
 
   return () => cleanups.forEach(cleanup => cleanup());
 }
@@ -388,7 +403,7 @@ function bubbleFloatAnimation(element) {
   
   // Ensure we have letters to animate
   if (letters.length === 0) {
-    letters = "BUBBLE POP FRENZY!".split('');
+    letters = "BuBbLe PoP FrEnZy!".split('');
   }
   
   letters.forEach((letter, index) => {
@@ -400,6 +415,12 @@ function bubbleFloatAnimation(element) {
       transform: translateY(100px) scale(0.5);
       animation: bubbleFloat 1.5s ease-out forwards;
       animation-delay: ${index * 0.15}s;
+
+      /* 🌟 CODE MODIFICATION HERE: Set color for contrast */
+      color: #1A237E; /* Deep Ocean Blue */
+      /* Apply font styles to span as well for robustness */
+      font-family: inherit; 
+      font-weight: bold;
     `;
     element.appendChild(span);
   });
