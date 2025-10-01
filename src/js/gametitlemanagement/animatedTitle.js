@@ -173,7 +173,7 @@ function floatingBubblesAnimation(element) {
  * Letters pop in one by one with bounce effect
  */
 function popInAnimation(element) {
-  const text = element.textContent || "BUBBLE POP FRENZY!";
+  const text = element.textContent || "Bubble Pop Frenzy!";
   element.innerHTML = '';
   element.style.display = 'flex';
   element.style.justifyContent = 'center';
@@ -190,6 +190,9 @@ function popInAnimation(element) {
       transform: scale(0);
       animation: popIn 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55) forwards;
       animation-delay: ${index * 0.1}s;
+       /* Apply font styles to span as well for robustness */
+      font-family: inherit; 
+      font-weight: bold;
     `;
     element.appendChild(span);
   });
@@ -389,42 +392,64 @@ function arcadeMarqueeAnimation(element) {
 }
 
 /**
- * 7. Bubble Float Animation - FIXED
- * Bubbles float up from bottom and pop into position
+ * 7. Bubble Float Animation - REVISED
+ * Bubbles float up from bottom and pop into position, with improved stability
  */
 function bubbleFloatAnimation(element) {
-  const text = element.textContent || "BUBBLE POP FRENZY!";
+  const text = (element.textContent || "BUBBLE POP FRENZY!").trim();
   element.innerHTML = '';
-  element.style.display = 'flex';
-  element.style.justifyContent = 'center';
-  element.style.gap = '4px';
-
-  const letters = text.split('');
   
-  // Ensure we have letters to animate
-  if (letters.length === 0) {
-    letters = "BuBbLe PoP FrEnZy!".split('');
-  }
-  
-  letters.forEach((letter, index) => {
-    const span = document.createElement('span');
-    span.textContent = letter;
-    span.style.cssText = `
-      display: inline-block;
-      opacity: 0;
-      transform: translateY(100px) scale(0.5);
-      animation: bubbleFloat 1.5s ease-out forwards;
-      animation-delay: ${index * 0.15}s;
+  // 3. Load font/Set Size/Set Layout on Parent
+  element.style.cssText = `
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px; /* Gap between words */
+    flex-wrap: wrap; /* Allow wrapping of words */
+    font-family: 'Bangers', cursive; /* 3. Explicitly ensure title font is applied */
+    font-size: 2.5rem; /* Set base font size for the title */
+  `;
 
-      /* 🌟 CODE MODIFICATION HERE: Set color for contrast */
-      color: #1A237E; /* Deep Ocean Blue */
-      /* Apply font styles to span as well for robustness */
-      font-family: inherit; 
-      font-weight: bold;
+  // 2. Split text into words, then process each word to prevent splitting
+  const words = text.split(/\s+/);
+  const cleanups = [];
+  let totalIndex = 0;
+
+  words.forEach((word) => {
+    // Create a container for the word to prevent characters from wrapping
+    const wordContainer = document.createElement('span');
+    wordContainer.style.cssText = `
+      display: flex;
+      gap: 4px; /* Smaller gap between characters within a word */
     `;
-    element.appendChild(span);
+    element.appendChild(wordContainer);
+
+    // Use Array.from for Unicode/Emoji safe splitting (good practice)
+    const letters = Array.from(word);
+
+    letters.forEach((letter) => {
+      const span = document.createElement('span');
+      span.textContent = letter;
+      span.style.cssText = `
+        display: inline-block;
+        opacity: 0;
+        transform: translateY(100px) scale(0.5);
+        animation: bubbleFloat 1.5s ease-out forwards;
+        animation-delay: ${totalIndex * 0.15}s;
+
+        /* 1. Change font colour to darker/deeper contrasting colours */
+        color: #1A237E; /* Deep Ocean Blue */
+        
+        font-family: inherit; 
+        font-size: 1em; /* Inherit size from parent */
+        font-weight: bold;
+      `;
+      wordContainer.appendChild(span);
+      totalIndex++;
+    });
   });
 
+  // Keyframes section (unchanged)
   const style = document.createElement('style');
   style.textContent = `
     @keyframes bubbleFloat {
