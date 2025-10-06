@@ -227,4 +227,157 @@ function initializeGame() {
     }
 
     // STEP 3: Initialize Canvas Manager with device-aware dimensions
-    canvasManager = new CanvasManager("gameCanvas", canvasDimensions
+    canvasManager = new CanvasManager("gameCanvas", canvasDimensions);
+    console.log('✅ Canvas Manager initialized');
+
+    // STEP 4: Get DOM elements
+    scoreDisplay = document.getElementById("scoreDisplay");
+    modeDisplay = document.getElementById("modeDisplay");
+    classicTimerDisplay = document.getElementById("classicTimerDisplay");
+    survivalStatsDisplay = document.getElementById("survivalStatsDisplay");
+    survivalTimeElapsedDisplay = document.getElementById("survivalTimeElapsedDisplay");
+    survivalMissesDisplay = document.getElementById("survivalMissesDisplay");
+    messageBox = document.getElementById("messageBox");
+    messageTitle = document.getElementById("messageTitle");
+    messageText = document.getElementById("messageText");
+    buttonContainer = document.getElementById("buttonContainer");
+    gameInfo = document.getElementById("gameInfo");
+    gameContainer = document.querySelector(".game-container");
+
+    // Verify critical DOM elements
+    if (!scoreDisplay || !messageBox || !gameInfo || !gameContainer) {
+      throw new Error('Critical DOM elements not found');
+    }
+
+    console.log('✅ DOM elements loaded');
+
+    // STEP 5: Initialize animated game title
+    initializeGameTitle();
+
+    // STEP 6: Create comprehensive game configuration object
+    const gameConfig = {
+      // Canvas references
+      canvasManager,
+      canvas: canvasManager.element,  // For backward compatibility
+      ctx: canvasManager.context,     // For backward compatibility
+      
+      // UI elements
+      scoreDisplay,
+      modeDisplay,
+      classicTimerDisplay,
+      survivalStatsDisplay,
+      survivalTimeElapsedDisplay,
+      survivalMissesDisplay,
+      gameInfo,
+      gameContainer,
+      
+      // Device information (NEW)
+      deviceInfo: { ...deviceInfo },
+      uiScaling: { ...uiScaling },
+      canvasDimensions: { ...canvasDimensions },
+      gameSettings: { ...gameSettings }
+    };
+
+    console.log('✅ Game config created');
+
+    // STEP 7: Apply device-specific UI adjustments
+    applyDeviceUIAdjustments(deviceInfo, uiScaling);
+
+    // STEP 8: Register for device changes (resize/orientation)
+    resizeUnsubscribe = onResize(handleDeviceChange(gameConfig));
+    console.log('✅ Resize listener registered');
+
+    // STEP 9: Show main menu
+    showMainMenu(gameConfig);
+    console.log('✅ Main menu displayed');
+
+    // STEP 10: Set up pointer/touch handler using canvas manager's element
+    canvasManager.element.addEventListener("pointerdown", (e) => {
+      const rect = canvasManager.element.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      handleCanvasPointerDown(x, y);
+    });
+    console.log('✅ Pointer handler attached');
+
+    // STEP 11: Add touch-specific handlers for mobile
+    if (deviceInfo.isTouchDevice) {
+      // Prevent context menu on long press
+      canvasManager.element.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+      });
+      
+      // Prevent default touch behaviors
+      canvasManager.element.addEventListener('touchstart', (e) => {
+        // Allow the pointerdown event to handle the touch
+        e.preventDefault();
+      }, { passive: false });
+      
+      console.log('✅ Touch handlers configured');
+    }
+
+    console.log('🎮 Game initialization complete!');
+    
+  } catch (error) {
+    console.error('❌ Fatal error during game initialization:', error);
+    
+    // Show user-friendly error message
+    if (messageBox && messageTitle && messageText && buttonContainer) {
+      messageTitle.innerHTML = 'Initialization Error';
+      messageText.textContent = 'Failed to start the game. Please refresh the page.';
+      buttonContainer.innerHTML = '<button onclick="window.location.reload()">Refresh Page</button>';
+      messageBox.classList.add('show');
+    } else {
+      // Fallback if even the message box isn't available
+      alert('Failed to initialize game. Please refresh the page.');
+    }
+  }
+}
+
+/**
+ * Cleanup function (if needed for page unload)
+ */
+function cleanup() {
+  console.log('🧹 Cleaning up...');
+  
+  // Clean up title animation
+  cleanupGameTitle();
+  
+  // Unsubscribe from resize events
+  if (resizeUnsubscribe && typeof resizeUnsubscribe === 'function') {
+    resizeUnsubscribe();
+    resizeUnsubscribe = null;
+  }
+  
+  // Clean up canvas manager
+  if (canvasManager && canvasManager.destroy) {
+    canvasManager.destroy();
+  }
+  
+  console.log('✅ Cleanup complete');
+}
+
+// Event listener for window load to ensure DOM is ready
+window.addEventListener('load', initializeGame);
+
+// Optional: Add cleanup on page unload
+window.addEventListener('beforeunload', cleanup);
+
+// Add global error handler for better debugging
+window.addEventListener('error', (event) => {
+  console.error('🚨 Global error:', {
+    message: event.message,
+    filename: event.filename,
+    lineno: event.lineno,
+    colno: event.colno,
+    error: event.error
+  });
+});
+
+// Add unhandled promise rejection handler
+window.addEventListener('unhandledrejection', (event) => {
+  console.error('🚨 Unhandled promise rejection:', event.reason);
+});
+
+// Export the cleanup function for potential use by other modules
+export { cleanupGameTitle, cleanup };
