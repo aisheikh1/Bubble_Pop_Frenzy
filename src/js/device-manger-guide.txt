@@ -1,0 +1,277 @@
+# Device Manager Usage Guide
+
+## Overview
+The Device Manager provides device detection and adaptive scaling for Bubble Pop Frenzy. It automatically detects device type, screen size, pixel ratio, and orientation, then provides this information to other modules.
+
+## Quick Start
+
+### 1. Initialization (Already done in main.js)
+```javascript
+import { initializeDevice } from './deviceManager.js';
+
+const deviceInfo = initializeDevice();
+// Logs: Device type, screen dimensions, orientation, etc.
+```
+
+## Available Functions
+
+### `initializeDevice()`
+Performs initial device detection and sets up listeners.
+```javascript
+const deviceInfo = initializeDevice();
+// Returns: Complete device information object
+```
+
+### `getDeviceInfo()`
+Gets current device information (call anytime after initialization).
+```javascript
+const info = getDeviceInfo();
+console.log(info.deviceType);      // 'mobile' or 'desktop'
+console.log(info.screenWidth);     // e.g., 375
+console.log(info.orientation);     // 'portrait' or 'landscape'
+console.log(info.isTouchDevice);   // true/false
+```
+
+### `onResize(callback)`
+Listen for device changes (resize, orientation).
+```javascript
+const unsubscribe = onResize((deviceInfo, changeInfo) => {
+  if (changeInfo.orientationChanged) {
+    console.log('Orientation changed to:', deviceInfo.orientation);
+  }
+  
+  if (changeInfo.significantResize) {
+    console.log('Screen resized significantly');
+  }
+});
+
+// Later: clean up listener
+unsubscribe();
+```
+
+### `getRecommendedCanvasDimensions()`
+Get optimal canvas size for current device.
+```javascript
+const dims = getRecommendedCanvasDimensions();
+canvas.width = dims.width;
+canvas.height = dims.height;
+```
+
+### `getUIScaling()`
+Get scaling factors for UI elements.
+```javascript
+const scaling = getUIScaling();
+
+// Apply to text
+fontSize = 16 * scaling.text;
+
+// Apply to bubbles
+bubbleRadius = 30 * scaling.bubbles;
+
+// Apply to touch targets
+buttonSize = Math.max(32, scaling.minTouchTarget);
+```
+
+### `getRecommendedGameSettings()`
+Get device-optimized game settings.
+```javascript
+const settings = getRecommendedGameSettings();
+
+maxBubbles = settings.maxBubbles;           // 8 on mobile, 12 on desktop
+particleDensity = settings.particleDensity; // 0.6 on mobile, 1 on desktop
+enableEffects = settings.advancedEffects;   // false on mobile
+```
+
+### `prefersReducedMotion()`
+Check if user prefers reduced animations.
+```javascript
+if (prefersReducedMotion()) {
+  // Disable or reduce animations
+  disableParticleEffects();
+}
+```
+
+## Device Info Object Structure
+
+```javascript
+{
+  // Core properties
+  deviceType: 'mobile' | 'desktop',
+  screenWidth: number,              // viewport width in px
+  screenHeight: number,             // viewport height in px
+  devicePixelRatio: number,         // display density (1, 2, 3...)
+  orientation: 'portrait' | 'landscape',
+  isTouchDevice: boolean,
+  
+  // Computed properties
+  isRetina: boolean,                // true if DPR >= 2
+  viewportScale: number,            // 0.8 - 1.2
+  isPortrait: boolean,
+  isLandscape: boolean,
+  isMobile: boolean,
+  isDesktop: boolean,
+  
+  // Advanced
+  safeAreaInsets: {
+    top: number,
+    right: number,
+    bottom: number,
+    left: number
+  }
+}
+```
+
+## Integration Examples
+
+### In Game Logic (game.js)
+```javascript
+function startGame(config, mode) {
+  const { deviceInfo, uiScaling } = config;
+  
+  // Adjust bubble spawn rate for mobile
+  if (deviceInfo.isMobile) {
+    bubbleSpawnInterval *= 1.2; // Slower on mobile
+  }
+  
+  // Adjust bubble size for small screens
+  baseBubbleRadius *= uiScaling.bubbles;
+}
+```
+
+### In Bubble Spawning (bubbles.js)
+```javascript
+export function spawnBubble(gameCanvas, gameMode, config) {
+  const { uiScaling } = config;
+  
+  // Scale bubble size based on device
+  const radius = BASE_RADIUS * uiScaling.bubbles;
+  
+  // Adjust speed for mobile
+  const speed = BASE_SPEED * (config.deviceInfo.isMobile ? 0.8 : 1);
+}
+```
+
+### In UI Rendering
+```javascript
+function drawScore(ctx, score, config) {
+  const { uiScaling } = config;
+  
+  ctx.font = `${16 * uiScaling.text}px Inter`;
+  ctx.fillText(`Score: ${score}`, x, y);
+}
+```
+
+### In Effects Manager
+```javascript
+function createParticles(x, y, config) {
+  const settings = getRecommendedGameSettings();
+  
+  const particleCount = Math.floor(20 * settings.particleDensity);
+  // Mobile gets 12 particles, desktop gets 20
+}
+```
+
+## Best Practices
+
+### 1. Check Device Type for Major Changes
+```javascript
+if (deviceInfo.isMobile) {
+  // Use mobile-optimized logic
+  maxBubbles = 8;
+  showSimplifiedEffects();
+} else {
+  // Use desktop logic
+  maxBubbles = 12;
+  showFullEffects();
+}
+```
+
+### 2. Use Scaling Factors for Gradual Adjustments
+```javascript
+// Good: scales smoothly across devices
+bubbleRadius = 30 * uiScaling.bubbles;
+
+// Avoid: binary decisions for visual properties
+// if (isMobile) bubbleRadius = 25; else bubbleRadius = 30;
+```
+
+### 3. Respect User Preferences
+```javascript
+if (prefersReducedMotion()) {
+  // Disable non-essential animations
+  enableParticleEffects = false;
+  reduceScreenFlashes();
+}
+```
+
+### 4. Handle Orientation Changes
+```javascript
+onResize((deviceInfo, changeInfo) => {
+  if (changeInfo.orientationChanged) {
+    // Pause game
+    pauseGame();
+    
+    // Recalculate layout
+    updateLayout();
+    
+    // Resume
+    resumeGame();
+  }
+});
+```
+
+## Performance Considerations
+
+- Device detection runs once on initialization
+- Resize events are debounced (150ms)
+- Device info is cached and only updated on resize
+- All getter functions return copies (no mutation risk)
+
+## Troubleshooting
+
+### Canvas not resizing properly?
+```javascript
+// Make sure CanvasManager is initialized with dimensions
+const dims = getRecommendedCanvasDimensions();
+canvasManager = new CanvasManager("gameCanvas", dims);
+```
+
+### UI looks too small on mobile?
+```javascript
+// Check if scaling is being applied
+const scaling = getUIScaling();
+console.log('Current scaling:', scaling);
+
+// Apply to your elements
+element.style.fontSize = `${16 * scaling.text}px`;
+```
+
+### Want to test mobile on desktop?
+```javascript
+// Temporarily override detection (for testing only)
+// Open browser DevTools > Toggle Device Toolbar
+// The device manager will detect the emulated viewport size
+```
+
+## Future Enhancements
+
+Potential additions to the device manager:
+
+1. **Network detection** - Adjust asset loading based on connection speed
+2. **Battery level** - Reduce effects when battery is low
+3. **GPU detection** - Enable/disable advanced graphics
+4. **Gamepad support** - Detect and handle controller input
+5. **Dark mode detection** - Adapt color schemes
+
+## Summary
+
+The Device Manager provides:
+- ✅ Automatic device detection
+- ✅ Responsive canvas sizing
+- ✅ UI scaling factors
+- ✅ Optimized game settings
+- ✅ Orientation change handling
+- ✅ Accessibility support (reduced motion)
+- ✅ Touch device detection
+
+Use it throughout your codebase to create an adaptive, responsive gaming experience!
