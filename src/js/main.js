@@ -77,19 +77,19 @@ function cleanupGameTitle() {
 /**
  * Show the main menu with game mode selection
  */
-function showMainMenu(gameConfig) {
+async function showMainMenu(gameConfig) {
   showMessageBox(
     "Bubble Pop Frenzy!",
     "Select a game mode to begin.", [{
       label: "Classic Mode",
-      action: () => {
-        hideMessageBox();
+      action: async () => {
+        await hideMessageBox();
         startGame(gameConfig, 'classic');
       }
     }, {
       label: "Survival Mode",
-      action: () => {
-        hideMessageBox();
+      action: async () => {
+        await hideMessageBox();
         startGame(gameConfig, 'survival');
       }
     }]

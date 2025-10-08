@@ -1,0 +1,38 @@
+[33m4673b50[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mui/scale-management[m[33m)[m Revert "changes to mainn.js to incorporate scale management, step 2"
+[33m1218c2e[m Revert "modified main.js to import/export calls correctly"
+[33mb969cce[m modified main.js to import/export calls correctly
+[33m3ec27ca[m changes to mainn.js to incorporate scale management, step 2
+[33mc5a4b00[m scale management through device property detection, step 1
+[33mee15b90[m[33m ([m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m, [m[1;32mui/fix-game-title-animation[m[33m, [m[1;32mmain[m[33m)[m fixed multiple title animation issues
+[33m79cb13d[m fixing animation title issues
+[33m40e84c9[m[33m ([m[1;32mui/fixbackgroundcolour[m[33m)[m changed background colour of webpage to cream
+[33mcb368b2[m improving title animation
+[33m497855a[m fixing css issues
+[33m344d937[m fixing game title issues
+[33m13f7d8a[m adding animated game title
+[33mcf1f0ea[m UIissue: game opens up in landscape mode rather than portrait. Fixed manifest.json file
+[33m6e52b32[m bug fix: classic and survival mode buttons not visible.
+[33mfda2261[m centralising canvas amangement into a single file - previously canvas management spread across multiple files. Previous approach made maintainability a massive issue!
+[33md5a379d[m removing game title heading, previous fix did not work
+[33m764fb8b[m removing first heading of game in big bold letters
+[33me9af7ef[m resolving remaining sw issues, failing to cache certain files, sw get 404 error
+[33m17bebec[m fixing service worker issues
+[33m5d6f9e2[m updated path references in index.html and manifest.json to resolve failed resource load issues
+[33m28ccb35[m Added PWA files and modifications, game still not ready but needs to be installed on android devices for testing
+[33m538528e[m moved index.html out of public folder for gitpages
+[33m627f2ff[m game with classic and survival mode
+[33me78bc8c[m initial commit
+[33m75b3376[m Delete index.html
+[33m168c298[m Delete README.md
+[33m3a32e76[m Add files via upload
+[33m690b615[m Delete index.html
+[33mefbe121[m Add files via upload
+[33m4610094[m Delete index.html
+[33me5e1519[m Delete index.html.html
+[33m2a6669f[m Add files via upload
+[33m9202cff[m Add files via upload
+[33m48a4b42[m Delete game items to do.txt
+[33me03e9f3[m Delete Bubble_Pop_Frenzy_v00.4.1.3 - freeze logic.html
+[33m3e25142[m Add files via upload
+[33m7b0e82e[m Add files via upload
+[33m05f46d8[m Initial commit

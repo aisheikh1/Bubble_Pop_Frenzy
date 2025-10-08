@@ -44,15 +44,28 @@ function showMessageBox(title, text, buttons = []) {
     }
   });
 
-  // Show the message box
+  // Remove fade-out class if it exists and show the message box
+  messageBox.classList.remove("fade-out");
   messageBox.classList.add("show");
+  messageBox.style.display = "block";
 }
 
 /**
- * Hides the message box.
+ * Hides the message box with fade-out animation.
+ * @returns {Promise} - Resolves when animation is complete
  */
 function hideMessageBox() {
-  messageBox.classList.remove("show");
+  return new Promise((resolve) => {
+    // Add fade-out class to trigger animation
+    messageBox.classList.add("fade-out");
+    messageBox.classList.remove("show");
+    
+    // Wait for animation to complete before hiding
+    setTimeout(() => {
+      messageBox.style.display = "none";
+      resolve();
+    }, 500); // Match the CSS transition duration
+  });
 }
 
 export { showMessageBox, hideMessageBox };

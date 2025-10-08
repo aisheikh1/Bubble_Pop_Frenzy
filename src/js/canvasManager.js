@@ -25,7 +25,30 @@ export class CanvasManager {
     this.isVisible = true;
   }
   
+  /**
+   * Show canvas with smooth animation
+   * @returns {Promise} - Resolves when animation is complete
+   */
+  showWithAnimation() {
+    return new Promise((resolve) => {
+      // First make it visible but still invisible (opacity 0)
+      this.canvas.style.display = 'block';
+      this.isVisible = true;
+      
+      // Small delay to ensure display:block is applied before animation
+      setTimeout(() => {
+        this.canvas.classList.add('canvas-appearing');
+        
+        // Wait for animation to complete
+        setTimeout(() => {
+          resolve();
+        }, 600); // Match CSS transition duration
+      }, 50);
+    });
+  }
+  
   hide() {
+    this.canvas.classList.remove('canvas-appearing');
     this.canvas.style.display = 'none';
     this.isVisible = false;
   }
@@ -38,10 +61,13 @@ export class CanvasManager {
     const container = this.canvas.parentElement;
     if (!container) return;
     
-    // Canvas width should be up to 95% of container, but no more than 500px
-    this.canvas.width = Math.min(container.clientWidth * 0.95, 500);
-    // Maintain aspect ratio, height is 80% of width for better mobile optimization
-    this.canvas.height = this.canvas.width * 0.8;
+    // Canvas width should be 95% of container width
+    const containerWidth = container.clientWidth;
+    const containerHeight = container.clientHeight;
+    
+    this.canvas.width = containerWidth * 0.95;
+    // Canvas height should be 70% of container height
+    this.canvas.height = containerHeight * 0.70;
   }
   
   setupResizeHandler() {
