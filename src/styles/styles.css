@@ -122,61 +122,6 @@ canvas.canvas-appearing {
   box-shadow: 0 6px 15px rgba(0, 0, 0, 0.3);
 }
 
-/* Start Button Overlay */
-.start-button-overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 100;
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity 0.4s ease-in;
-}
-
-.start-button-overlay.show {
-  opacity: 1;
-  pointer-events: all;
-}
-
-.start-button-overlay button {
-  background: linear-gradient(145deg, #4CAF50, #45a049);
-  color: white;
-  border: none;
-  border-radius: 60px;
-  padding: 1.5rem 3rem;
-  font-family: 'Fredoka One', cursive;
-  font-size: 1.8rem;
-  cursor: pointer;
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
-  transition: transform 0.3s, box-shadow 0.3s;
-  letter-spacing: 1px;
-  text-transform: uppercase;
-  animation: pulse 2s infinite;
-}
-
-.start-button-overlay button:hover {
-  transform: translateY(-4px) scale(1.05);
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4);
-}
-
-.start-button-overlay button:active {
-  transform: translateY(-2px) scale(1.02);
-}
-
-@keyframes pulse {
-  0%, 100% {
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
-  }
-  50% {
-    box-shadow: 0 8px 30px rgba(76, 175, 80, 0.6);
-  }
-}
-
 .urgent-message {
   position: absolute;
   top: 50%;

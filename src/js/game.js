@@ -15,13 +15,13 @@ import {
   showDoublePop
 } from './ui/urgentMessage.js';
 import { showMessageBox, hideMessageBox } from './ui/messageBox.js';
-import { showStartButton } from './ui/startButton.js';
 import { FloatingTextEffect } from './effects/FloatingTextEffect.js';
 import { effects } from './effects/EffectManager.js';
 import { GiftUnwrapEffect } from './effects/GiftUnwrapEffect.js';
 import { BombPrimedEffect } from './effects/BombPrimedEffect.js';
 import { ExplosionEffect } from './effects/ExplosionEffect.js';
 import { ScreenFlashEffect } from './effects/ScreenFlashEffect.js';
+import { CountdownTextEffect } from './effects/CountdownTextEffect.js';
 
 // ---------------------------
 // Game State Variables
@@ -92,9 +92,20 @@ const GAME_CONSTANTS = {
 // Game Functions
 // ---------------------------
 
+async function startCountdown(config) {
+  const countdownValues = ['3', '2', '1', 'Pop!'];
+  
+  for (const value of countdownValues) {
+    effects.spawn(new CountdownTextEffect(value, 500));
+    await new Promise(resolve => setTimeout(resolve, 500));
+  }
+  
+  actuallyStartGame();
+}
+
 function handleDifficultyIncrease(now) {
   if (!flashTriggered && now - lastDifficultyIncreaseTime > GAME_CONSTANTS.DIFFICULTY_INCREASE_INTERVAL - 2000) {
-    effects.add(new ScreenFlashEffect('yellow', 0.3));
+    effects.spawn(new ScreenFlashEffect('yellow', 0.3));
     flashTriggered = true;
   }
   
@@ -118,7 +129,7 @@ function handleDifficultyIncrease(now) {
       if (showMessage) {
         showFasterBubbles(difficultyLevel);
       }
-      effects.add(new ScreenFlashEffect('lime', 0.4));
+      effects.spawn(new ScreenFlashEffect('lime', 0.4));
       lastIncreaseType = 'speed';
       
     } else {
@@ -130,7 +141,7 @@ function handleDifficultyIncrease(now) {
         bubbleSpawnInterval = Math.max(bubbleSpawnInterval * 0.7, GAME_CONSTANTS.MIN_SPAWN_INTERVAL);
       }
       
-      effects.add(new ScreenFlashEffect('cyan', 0.4));
+      effects.spawn(new ScreenFlashEffect('cyan', 0.4));
       if (showMessage) {
         showMoreBubbles(difficultyLevel);
       }
@@ -141,7 +152,7 @@ function handleDifficultyIncrease(now) {
     
     if (difficultyLevel % 3 === 0) {
       showMaximumIntensity();
-      effects.add(new ScreenFlashEffect('orange', 0.6));
+      effects.spawn(new ScreenFlashEffect('orange', 0.6));
     }
   }
 }
@@ -184,9 +195,7 @@ async function prepareGame(config, mode) {
 
   await config.canvasManager.showWithAnimation();
   
-  await showStartButton(() => {
-    actuallyStartGame();
-  });
+  startCountdown(config);
   
   gamePrepared = true;
 }
@@ -285,7 +294,7 @@ function gameLoop(now) {
     if (wasMissed) {
       if (gameMode === 'survival') {
         survivalTimeLeft -= GAME_CONSTANTS.TIME_PENALTY_PER_MISS;
-        effects.add(new FloatingTextEffect(gameCanvas.width / 2, 50, `-${GAME_CONSTANTS.TIME_PENALTY_PER_MISS}s`, '#ff5555'));
+        effects.spawn(new FloatingTextEffect(gameCanvas.width / 2, 50, `-${GAME_CONSTANTS.TIME_PENALTY_PER_MISS}s`, '#ff5555'));
         bubblesMissed++;
         consecutivePops = 0;
         consecutiveNormalPops = 0;
@@ -318,9 +327,9 @@ function handleCanvasPointerDown(x, y) {
       if (bubble.type === 'decoy') {
         score -= 50;
         survivalTimeLeft -= GAME_CONSTANTS.TIME_PENALTY_PER_DECOY;
-        effects.add(new ScreenFlashEffect('red'));
+        effects.spawn(new ScreenFlashEffect('red'));
         showOuchPenalty();
-        effects.add(new FloatingTextEffect(gameCanvas.width / 2, 50, `-${GAME_CONSTANTS.TIME_PENALTY_PER_DECOY}s`, '#ff5555'));
+        effects.spawn(new FloatingTextEffect(gameCanvas.width / 2, 50, `-${GAME_CONSTANTS.TIME_PENALTY_PER_DECOY}s`, '#ff5555'));
         
         bubble.popped = true;
         poppedAny = true;
@@ -331,9 +340,9 @@ function handleCanvasPointerDown(x, y) {
         if (!isFreezeModeActive) {
           isFreezeModeActive = true;
           freezeModeTimeLeft = GAME_CONSTANTS.FREEZE_DURATION;
-          effects.add(new ScreenFlashEffect('blue'));
+          effects.spawn(new ScreenFlashEffect('blue'));
           showTimeFreeze();
-          effects.add(new GiftUnwrapEffect(bubble.x, bubble.y, bubble.radius, bubble.color));
+          effects.spawn(new GiftUnwrapEffect(bubble.x, bubble.y, bubble.radius, bubble.color));
         }
         bubble.popped = true;
         poppedAny = true;
@@ -341,8 +350,8 @@ function handleCanvasPointerDown(x, y) {
         consecutiveNormalPops = 0;
         break;
       } else if (bubble.type === 'bomb') {
-        effects.add(new ExplosionEffect(bubble.x, bubble.y, 200, 'orange'));
-        effects.add(new ScreenFlashEffect('orange'));
+        effects.spawn(new ExplosionEffect(bubble.x, bubble.y, 200, 'orange'));
+        effects.spawn(new ScreenFlashEffect('orange'));
         showBoom();
         bubbles = [];
         
@@ -362,11 +371,11 @@ function handleCanvasPointerDown(x, y) {
             consecutiveNormalPops++;
             if (consecutiveNormalPops % 2 === 0) {
               survivalTimeLeft += 1;
-              effects.add(new FloatingTextEffect(gameCanvas.width / 2, 50, "+1s", bubble.color));
+              effects.spawn(new FloatingTextEffect(gameCanvas.width / 2, 50, "+1s", bubble.color));
             }
           } else if (bubble.type === 'double') {
             survivalTimeLeft += GAME_CONSTANTS.TIME_BONUS_PER_DOUBLE_TAP;
-            effects.add(new FloatingTextEffect(gameCanvas.width / 2, 50, "+1s", bubble.initialColor));
+            effects.spawn(new FloatingTextEffect(gameCanvas.width / 2, 50, "+1s", bubble.initialColor));
             consecutiveNormalPops = 0;
           } else {
             consecutiveNormalPops = 0;

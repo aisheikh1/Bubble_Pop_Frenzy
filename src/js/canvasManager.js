@@ -61,13 +61,13 @@ export class CanvasManager {
     const container = this.canvas.parentElement;
     if (!container) return;
     
-    // Canvas width should be 95% of container width
+    // Canvas width should be 90% of container width
     const containerWidth = container.clientWidth;
     const containerHeight = container.clientHeight;
     
-    this.canvas.width = containerWidth * 0.95;
-    // Canvas height should be 70% of container height
-    this.canvas.height = containerHeight * 0.70;
+    this.canvas.width = containerWidth * 0.90;
+    // Canvas height should be 55% of container height
+    this.canvas.height = containerHeight * 0.55;
   }
   
   setupResizeHandler() {
