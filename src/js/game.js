@@ -499,16 +499,16 @@ function endGame() {
     showMessageBox(
       "Time's Up!",
       `Your final score is: ${score} points`, [{
-        label: "Play Again",
-        action: () => restartGame() // Play Again action changed to restart game
+        label: "Go to Main Menu",
+        action: () => goToMainMenu() // Play Again action changed to restart game
       }]
     );
   } else if (gameMode === 'survival') {
     showMessageBox(
       "Time's Up!",
       `Your final score is: ${score} points`, [{
-        label: "Try Again",
-        action: () => restartGame()
+        label: "Go to Main Menu", // Try again label
+        action: () => goToMainMenu()
       }]
     );
   }
