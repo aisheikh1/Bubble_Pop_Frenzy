@@ -92,6 +92,26 @@ const GAME_CONSTANTS = {
 // Game Functions
 // ---------------------------
 
+function setBackButtonVisible(visible) {
+  if (gameConfig?.backButton) {
+    visible ? gameConfig.backButton.show() : gameConfig.backButton.hide();
+  }
+}
+
+function goToMainMenu() {
+  // stop the loop if running
+  gameActive = false;
+  gamePrepared = false;
+  if (animFrameId) cancelAnimationFrame(animFrameId);
+
+  // hide canvas and button
+  if (gameConfig?.canvasManager) gameConfig.canvasManager.hide();
+  setBackButtonVisible(false);
+
+  // show mode selection
+  showModeSelection();
+}
+
 async function startCountdown(config) {
   const countdownValues = ['3', '2', '1', 'Pop!'];
   let countdownRunning = true;
@@ -211,7 +231,7 @@ async function prepareGame(config, mode) {
   gameConfig.modeDisplay.textContent = gameMode === 'classic' ? 'Classic Mode' : 'Survival Mode';
 
   await config.canvasManager.showWithAnimation();
-  
+  setBackButtonVisible(true);        // <--- add this after the await  
   startCountdown(config);
   
   gamePrepared = true;
@@ -447,7 +467,7 @@ function endGame() {
   cancelAnimationFrame(animFrameId);
 
   gameConfig.canvasManager.hide();
-
+  setBackButtonVisible(false);   
   if (gameMode === 'classic') {
     showMessageBox(
       "Time's Up!",
@@ -470,6 +490,7 @@ function endGame() {
 async function showModeSelection() {
   await hideMessageBox();
   gameConfig.gameInfo.style.display = 'none';
+  setBackButtonVisible(false);  
   showMessageBox(
     "Select Mode",
     "Choose your game mode:", [{
@@ -495,5 +516,6 @@ export {
   gameLoop,
   handleCanvasPointerDown,
   endGame,
-  updateUI
+  updateUI,
+  goToMainMenu     // <--- add this
 };

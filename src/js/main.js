@@ -1,9 +1,11 @@
 // src/js/main.js
 
-import { startGame, handleCanvasPointerDown, updateUI } from './game.js';
+import { startGame, handleCanvasPointerDown, updateUI, goToMainMenu } from './game.js';
 import { showMessageBox, hideMessageBox } from './ui/messageBox.js';
 import { CanvasManager } from './canvasManager.js';
 import { initializeAnimatedTitle, preloadTitleAnimations } from './gametitlemanagement/index.js';
+import { BackButton } from './ui/BackButton.js';
+
 
 // Declare variables to hold DOM elements
 export let scoreDisplay;
@@ -118,6 +120,12 @@ window.addEventListener('load', () => {
   gameInfo = document.getElementById("gameInfo");
   gameContainer = document.querySelector(".game-container");
 
+  // Build the Back button module (auto-inserts under canvas)
+  const backButton = new BackButton(gameContainer, canvasManager.element);
+  backButton.onClick(() => goToMainMenu());
+
+
+
   // Initialize animated game title
   initializeGameTitle();
 
@@ -132,7 +140,8 @@ window.addEventListener('load', () => {
     survivalStatsDisplay,
     survivalTimeElapsedDisplay,
     survivalMissesDisplay,
-    gameInfo
+    gameInfo,
+    backButton // adding back button
   };
 
   // Show main menu
