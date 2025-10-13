@@ -1,10 +1,12 @@
 // src/js/main.js
 
-import { startGame, handleCanvasPointerDown, updateUI, goToMainMenu } from './game.js';
+import { startGame, handleCanvasPointerDown, updateUI, goToMainMenu, restartGame } from './game.js';
 import { showMessageBox, hideMessageBox } from './ui/messageBox.js';
 import { CanvasManager } from './canvasManager.js';
 import { initializeAnimatedTitle, preloadTitleAnimations } from './gametitlemanagement/index.js';
 import { BackButton } from './ui/BackButton.js';
+import { RestartButton } from './ui/RestartButton.js';
+
 
 
 // Declare variables to hold DOM elements
@@ -123,6 +125,11 @@ window.addEventListener('load', () => {
   // Build the Back button module (auto-inserts under canvas)
   const backButton = new BackButton(gameContainer, canvasManager.element);
   backButton.onClick(() => goToMainMenu());
+  
+  // Build the Restart button inside the same below-canvas region
+  const belowCanvas = document.querySelector('.below-canvas');  // <-- add this
+  const restartButton = new RestartButton(belowCanvas);
+  restartButton.onClick(() => restartGame());
 
 
 
@@ -141,7 +148,8 @@ window.addEventListener('load', () => {
     survivalTimeElapsedDisplay,
     survivalMissesDisplay,
     gameInfo,
-    backButton // adding back button
+    backButton, // adding back button
+    restartButton //adding restart button
   };
 
   // Show main menu

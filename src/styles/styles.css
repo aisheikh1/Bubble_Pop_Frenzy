@@ -64,15 +64,17 @@ canvas.canvas-appearing {
 .below-canvas {
   flex: 1;                 /* take all leftover height beneath the canvas */
   width: 100%;
-  display: flex;           /* center the button inside this region */
+  display: flex;           /* center the buttons inside this region */
   align-items: center;     /* vertical center -> equidistant top/bottom of this area */
-  justify-content: center; /* horizontal center */
-  position: relative; z-index: 1; 
-
+  justify-content: space-evenly; /* evenly distribute restart and back buttons */
+  position: relative; 
+  z-index: 1;
+  gap: 1rem;               /* spacing between buttons */
 }
 
 /* High-contrast circular button on cream background (#fffdd0) */
-.back-btn {
+.back-btn,
+.restart-btn {
   touch-action: manipulation;  /* eliminates 300ms delay on some UAs */
   -webkit-tap-highlight-color: transparent; /* nicer tap highlight on iOS */
   user-select: none;           /* avoids text selection during taps */
@@ -93,21 +95,27 @@ canvas.canvas-appearing {
   transform: translateZ(0);
 }
 
-.back-btn svg {
-  width: 42px;
-  height: 42px;
+.back-btn svg,
+.restart-btn svg {
+  width: 32px;
+  height: 32px;
   flex: 0 0 auto;
 }
 
-.back-btn:active { filter: brightness(0.95); }
+.back-btn:active,
+.restart-btn:active { 
+  filter: brightness(0.95); 
+}
 
 
 /* Hidden by default; shown only during gameplay */
-.back-btn.hidden {
+.back-btn.hidden,
+.restart-btn.hidden {
   display: none;
 }
 
-.back-btn:focus-visible {
+.back-btn:focus-visible,
+.restart-btn:focus-visible {
   outline: 3px solid #000;
   outline-offset: 3px;
 }

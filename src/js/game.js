@@ -98,6 +98,30 @@ function setBackButtonVisible(visible) {
   }
 }
 
+function setRestartButtonVisible(visible) {
+  if (gameConfig?.restartButton) {
+    visible ? gameConfig.restartButton.show() : gameConfig.restartButton.hide();
+  }
+}
+
+function restartGame() {
+  // Stop any running loop cleanly
+  gameActive = false;
+  gamePrepared = false;
+  if (animFrameId) cancelAnimationFrame(animFrameId);
+
+  // Reset current playfield
+  bubbles = [];
+
+  // (Optional) Clear transient effects if your EffectManager supports it:
+  // if (effects.clear) effects.clear();
+
+  // Re-prepare the *same* mode using existing config
+  if (gameConfig && gameMode) {
+    prepareGame(gameConfig, gameMode);  // shows canvas, reveals buttons, runs countdown
+  }
+}
+
 function goToMainMenu() {
   // stop the loop if running
   gameActive = false;
@@ -107,6 +131,7 @@ function goToMainMenu() {
   // hide canvas and button
   if (gameConfig?.canvasManager) gameConfig.canvasManager.hide();
   setBackButtonVisible(false);
+  setRestartButtonVisible(false);   // <-- add
 
   // show mode selection
   showModeSelection();
@@ -232,6 +257,7 @@ async function prepareGame(config, mode) {
 
   await config.canvasManager.showWithAnimation();
   setBackButtonVisible(true);        // <--- add this after the await  
+  setRestartButtonVisible(true);
   startCountdown(config);
   
   gamePrepared = true;
@@ -465,15 +491,16 @@ function endGame() {
   gameActive = false;
   gamePrepared = false;
   cancelAnimationFrame(animFrameId);
-
   gameConfig.canvasManager.hide();
   setBackButtonVisible(false);   
+  setRestartButtonVisible(false);
+
   if (gameMode === 'classic') {
     showMessageBox(
       "Time's Up!",
       `Your final score is: ${score} points`, [{
         label: "Play Again",
-        action: () => showModeSelection()
+        action: () => restartGame() // Play Again action changed to restart game
       }]
     );
   } else if (gameMode === 'survival') {
@@ -481,7 +508,7 @@ function endGame() {
       "Time's Up!",
       `Your final score is: ${score} points`, [{
         label: "Try Again",
-        action: () => showModeSelection()
+        action: () => restartGame()
       }]
     );
   }
@@ -490,7 +517,9 @@ function endGame() {
 async function showModeSelection() {
   await hideMessageBox();
   gameConfig.gameInfo.style.display = 'none';
-  setBackButtonVisible(false);  
+  setBackButtonVisible(false);
+  setRestartButtonVisible(false);
+  
   showMessageBox(
     "Select Mode",
     "Choose your game mode:", [{
@@ -517,5 +546,6 @@ export {
   handleCanvasPointerDown,
   endGame,
   updateUI,
-  goToMainMenu     // <--- add this
+  goToMainMenu,
+  restartGame
 };
