@@ -94,12 +94,29 @@ const GAME_CONSTANTS = {
 
 async function startCountdown(config) {
   const countdownValues = ['3', '2', '1', 'Pop!'];
+  let countdownRunning = true;
+  let last = performance.now();
   
+  // Temporary render loop just for the countdown effects
+  function countdownLoop(now) {
+    if (!countdownRunning) return;
+    const dt = (now - last) / 1000;
+    last = now;
+    config.canvasManager.clear();
+    effects.update(dt, now);
+    effects.draw(config.canvasManager.context);
+    requestAnimationFrame(countdownLoop);
+  }
+  requestAnimationFrame(countdownLoop);
+  
+  // Spawn each step of the countdown, letting the temp loop render them
   for (const value of countdownValues) {
     effects.spawn(new CountdownTextEffect(value, 500));
-    await new Promise(resolve => setTimeout(resolve, 500));
+    await new Promise(r => setTimeout(r, 500));
   }
   
+  // Stop the temp loop and start the real game
+  countdownRunning = false;
   actuallyStartGame();
 }
 
