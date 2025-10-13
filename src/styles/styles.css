@@ -71,30 +71,31 @@ canvas.canvas-appearing {
 
 }
 
-/* High-contrast pill button on cream background (#fffdd0) */
+/* High-contrast circular button on cream background (#fffdd0) */
 .back-btn {
   touch-action: manipulation;  /* eliminates 300ms delay on some UAs */
   -webkit-tap-highlight-color: transparent; /* nicer tap highlight on iOS */
   user-select: none;           /* avoids text selection during taps */
   min-height: 44px;            /* accessible touch target (Apple/Google HIG) */
   min-width: 44px;
+  width: 44px;
+  height: 44px;
   display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.6rem 1rem;
+  justify-content: center;
+  padding: 0;
   border: none;
-  border-radius: 999px;
+  border-radius: 50%;
   background: #222;        /* strong contrast with #fffdd0 */
   color: #fff;
-  font: 600 1rem/1 'Inter', sans-serif;
   box-shadow: 0 6px 15px rgba(0,0,0,0.25);
   cursor: pointer;
   transform: translateZ(0);
 }
 
 .back-btn svg {
-  width: 1.1rem;
-  height: 1.1rem;
+  width: 42px;
+  height: 42px;
   flex: 0 0 auto;
 }
 
