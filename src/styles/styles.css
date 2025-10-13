@@ -67,10 +67,17 @@ canvas.canvas-appearing {
   display: flex;           /* center the button inside this region */
   align-items: center;     /* vertical center -> equidistant top/bottom of this area */
   justify-content: center; /* horizontal center */
+  position: relative; z-index: 1; 
+
 }
 
 /* High-contrast pill button on cream background (#fffdd0) */
 .back-btn {
+  touch-action: manipulation;  /* eliminates 300ms delay on some UAs */
+  -webkit-tap-highlight-color: transparent; /* nicer tap highlight on iOS */
+  user-select: none;           /* avoids text selection during taps */
+  min-height: 44px;            /* accessible touch target (Apple/Google HIG) */
+  min-width: 44px;
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
@@ -91,9 +98,8 @@ canvas.canvas-appearing {
   flex: 0 0 auto;
 }
 
-.back-btn:active {
-  transform: translateY(1px);
-}
+.back-btn:active { filter: brightness(0.95); }
+
 
 /* Hidden by default; shown only during gameplay */
 .back-btn.hidden {

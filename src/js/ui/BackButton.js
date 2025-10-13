@@ -29,7 +29,9 @@ export class BackButton {
 
     // Default no-op
     this._handler = () => {};
-    this.button.addEventListener('click', () => this._handler());
+    this.button.addEventListener('pointerdown', () => this._handler()),
+    this.button.addEventListener('click', () => this._handler()); //fallback
+
   }
 
   onClick(handler) {
