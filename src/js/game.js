@@ -29,6 +29,7 @@ import { CountdownTextEffect } from './effects/CountdownTextEffect.js';
 let bubbles = [];
 let gameActive = false;
 let gamePrepared = false;
+let gamePaused = false;
 
 // Time & Scoring
 let score = 0;
@@ -71,6 +72,9 @@ let gameCtx;
 let animFrameId = null;
 let lastFrameTime = 0;
 
+// Pause Overlay
+let pauseOverlay = null;
+
 // ---------------------------
 // Game Constants
 // ---------------------------
@@ -104,17 +108,70 @@ function setRestartButtonVisible(visible) {
   }
 }
 
+function setPauseButtonVisible(visible) {
+  if (gameConfig?.pauseButton) {
+    visible ? gameConfig.pauseButton.show() : gameConfig.pauseButton.hide();
+  }
+}
+
+function showPauseOverlay() {
+  if (!pauseOverlay && gameConfig?.canvasManager) {
+    pauseOverlay = document.createElement('div');
+    pauseOverlay.className = 'paused-overlay';
+    pauseOverlay.textContent = 'Game Paused';
+    
+    // Insert overlay relative to game container
+    const container = document.querySelector('.game-container');
+    if (container) {
+      container.appendChild(pauseOverlay);
+    }
+  }
+}
+
+function hidePauseOverlay() {
+  if (pauseOverlay) {
+    pauseOverlay.remove();
+    pauseOverlay = null;
+  }
+}
+
+function togglePause() {
+  if (!gameActive || !gamePrepared) {
+    return; // Can't pause if game isn't running
+  }
+
+  gamePaused = !gamePaused;
+
+  if (gameConfig?.pauseButton) {
+    gameConfig.pauseButton.toggle();
+  }
+
+  if (gamePaused) {
+    showPauseOverlay();
+  } else {
+    hidePauseOverlay();
+    // Reset lastFrameTime to prevent time jump
+    lastFrameTime = performance.now();
+  }
+}
+
 function restartGame() {
   // Stop any running loop cleanly
   gameActive = false;
   gamePrepared = false;
+  gamePaused = false;
   if (animFrameId) cancelAnimationFrame(animFrameId);
+
+  // Hide pause overlay if visible
+  hidePauseOverlay();
+
+  // Reset pause button state
+  if (gameConfig?.pauseButton) {
+    gameConfig.pauseButton.reset();
+  }
 
   // Reset current playfield
   bubbles = [];
-
-  // (Optional) Clear transient effects if your EffectManager supports it:
-  // if (effects.clear) effects.clear();
 
   // Re-prepare the *same* mode using existing config
   if (gameConfig && gameMode) {
@@ -126,12 +183,22 @@ function goToMainMenu() {
   // stop the loop if running
   gameActive = false;
   gamePrepared = false;
+  gamePaused = false;
   if (animFrameId) cancelAnimationFrame(animFrameId);
 
-  // hide canvas and button
+  // Hide pause overlay if visible
+  hidePauseOverlay();
+
+  // Reset pause button state
+  if (gameConfig?.pauseButton) {
+    gameConfig.pauseButton.reset();
+  }
+
+  // hide canvas and buttons
   if (gameConfig?.canvasManager) gameConfig.canvasManager.hide();
   setBackButtonVisible(false);
-  setRestartButtonVisible(false);   // <-- add
+  setRestartButtonVisible(false);
+  setPauseButtonVisible(false);
 
   // show mode selection
   showModeSelection();
@@ -244,6 +311,15 @@ async function prepareGame(config, mode) {
   bubblesMissed = 0;
   totalBubblesSpawned = 0;
   playerMissRate = 0;
+  gamePaused = false;
+  
+  // Reset pause button
+  if (gameConfig?.pauseButton) {
+    gameConfig.pauseButton.reset();
+  }
+  
+  // Hide pause overlay if visible
+  hidePauseOverlay();
   
   if (gameMode === 'classic') {
     classicTimeLeft = 60;
@@ -256,7 +332,8 @@ async function prepareGame(config, mode) {
   gameConfig.modeDisplay.textContent = gameMode === 'classic' ? 'Classic Mode' : 'Survival Mode';
 
   await config.canvasManager.showWithAnimation();
-  setBackButtonVisible(true);        // <--- add this after the await  
+  setBackButtonVisible(true);
+  setPauseButtonVisible(true);
   setRestartButtonVisible(true);
   startCountdown(config);
   
@@ -276,6 +353,7 @@ function actuallyStartGame() {
   lastDifficultyIncreaseTime = performance.now();
   
   gameActive = true;
+  gamePaused = false;
   lastFrameTime = performance.now();
   if (animFrameId) cancelAnimationFrame(animFrameId);
   animFrameId = requestAnimationFrame(gameLoop);
@@ -287,6 +365,20 @@ async function startGame(config, mode) {
 
 function gameLoop(now) {
   animFrameId = requestAnimationFrame(gameLoop);
+
+  // If paused, skip all game logic but keep rendering
+  if (gamePaused) {
+    // Still render the current state (frozen frame)
+    gameConfig.canvasManager.clear();
+    
+    for (let i = bubbles.length - 1; i >= 0; i--) {
+      const bubble = bubbles[i];
+      bubble.draw(gameCtx, now);
+    }
+    
+    effects.draw(gameCtx);
+    return;
+  }
 
   const deltaTime = (now - lastFrameTime) / 1000;
   lastFrameTime = now;
@@ -378,7 +470,7 @@ function gameLoop(now) {
 }
 
 function handleCanvasPointerDown(x, y) {
-  if (!gameActive) return;
+  if (!gameActive || gamePaused) return; // Can't pop bubbles when paused
 
   let poppedAny = false;
 
@@ -490,24 +582,34 @@ function updateUI() {
 function endGame() {
   gameActive = false;
   gamePrepared = false;
+  gamePaused = false;
   cancelAnimationFrame(animFrameId);
   gameConfig.canvasManager.hide();
-  setBackButtonVisible(false);   
+  setBackButtonVisible(false);
+  setPauseButtonVisible(false);
   setRestartButtonVisible(false);
+
+  // Hide pause overlay if visible
+  hidePauseOverlay();
+
+  // Reset pause button
+  if (gameConfig?.pauseButton) {
+    gameConfig.pauseButton.reset();
+  }
 
   if (gameMode === 'classic') {
     showMessageBox(
       "Time's Up!",
       `Your final score is: ${score} points`, [{
         label: "Go to Main Menu",
-        action: () => goToMainMenu() // Play Again action changed to restart game
+        action: () => goToMainMenu()
       }]
     );
   } else if (gameMode === 'survival') {
     showMessageBox(
       "Time's Up!",
       `Your final score is: ${score} points`, [{
-        label: "Go to Main Menu", // Try again label
+        label: "Go to Main Menu",
         action: () => goToMainMenu()
       }]
     );
@@ -518,6 +620,7 @@ async function showModeSelection() {
   await hideMessageBox();
   gameConfig.gameInfo.style.display = 'none';
   setBackButtonVisible(false);
+  setPauseButtonVisible(false);
   setRestartButtonVisible(false);
   
   showMessageBox(
@@ -547,5 +650,6 @@ export {
   endGame,
   updateUI,
   goToMainMenu,
-  restartGame
+  restartGame,
+  togglePause
 };

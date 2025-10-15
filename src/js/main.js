@@ -1,13 +1,12 @@
 // src/js/main.js
 
-import { startGame, handleCanvasPointerDown, updateUI, goToMainMenu, restartGame } from './game.js';
+import { startGame, handleCanvasPointerDown, updateUI, goToMainMenu, restartGame, togglePause } from './game.js';
 import { showMessageBox, hideMessageBox } from './ui/messageBox.js';
 import { CanvasManager } from './canvasManager.js';
 import { initializeAnimatedTitle, preloadTitleAnimations } from './gametitlemanagement/index.js';
 import { BackButton } from './ui/BackButton.js';
 import { RestartButton } from './ui/RestartButton.js';
-
-
+import { PauseButton } from './ui/PauseButton.js';
 
 // Declare variables to hold DOM elements
 export let scoreDisplay;
@@ -126,12 +125,16 @@ window.addEventListener('load', () => {
   const backButton = new BackButton(gameContainer, canvasManager.element);
   backButton.onClick(() => goToMainMenu());
   
-  // Build the Restart button inside the same below-canvas region
-  const belowCanvas = document.querySelector('.below-canvas');  // <-- add this
+  // Get the below-canvas container that BackButton created
+  const belowCanvas = document.querySelector('.below-canvas');
+  
+  // Build the Pause button in the same below-canvas region
+  const pauseButton = new PauseButton(belowCanvas);
+  pauseButton.onClick(() => togglePause());
+  
+  // Build the Restart button in the same below-canvas region
   const restartButton = new RestartButton(belowCanvas);
   restartButton.onClick(() => restartGame());
-
-
 
   // Initialize animated game title
   initializeGameTitle();
@@ -148,8 +151,9 @@ window.addEventListener('load', () => {
     survivalTimeElapsedDisplay,
     survivalMissesDisplay,
     gameInfo,
-    backButton, // adding back button
-    restartButton //adding restart button
+    backButton,      // adding back button
+    pauseButton,     // adding pause button
+    restartButton    // adding restart button
   };
 
   // Show main menu
