@@ -1,6 +1,6 @@
 // src/js/game.js
 
-import { Bubble, spawnBubble } from './bubbles.js';
+import { Bubble, spawnBubble, handleBubbleCollision } from './bubbles.js';
 import {
   showUrgentMessage,
   showDifficultyEaseUp,
@@ -441,6 +441,7 @@ function gameLoop(now) {
   
   gameConfig.canvasManager.clear();
   
+  // Update all bubbles
   for (let i = bubbles.length - 1; i >= 0; i--) {
     const bubble = bubbles[i];
     
@@ -458,9 +459,23 @@ function gameLoop(now) {
 
     if (bubble.dead) {
       bubbles.splice(i, 1);
-    } else {
-      bubble.draw(gameCtx, now);
     }
+  }
+  
+  // Check collisions between all bubble pairs (only if not frozen)
+  if (!isFreezeModeActive) {
+    for (let i = 0; i < bubbles.length; i++) {
+      if (bubbles[i].popped) continue; // Skip popped bubbles
+      for (let j = i + 1; j < bubbles.length; j++) {
+        if (bubbles[j].popped) continue; // Skip popped bubbles
+        handleBubbleCollision(bubbles[i], bubbles[j]);
+      }
+    }
+  }
+  
+  // Draw all bubbles
+  for (let i = 0; i < bubbles.length; i++) {
+    bubbles[i].draw(gameCtx, now);
   }
   
   effects.update(deltaTime, now);

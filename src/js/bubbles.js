@@ -33,7 +33,7 @@ class Bubble {
     this.opacity = 1;
     this.dead = false;
     this.wobbleOffset = Math.random() * Math.PI * 2;
-    this.wobbleSpeed = Math.random() * 0.005 + 0.005; // ms
+    this.wobbleSpeed = Math.random() * 0.003 + 0.003; // Reduced wobble for cleaner movement
     this.creationTime = currentTime;
     this.maxLifetime = type === 'decoy' ? 3000 : 7000; // Decoys last for 3s, others 7s
   }
@@ -87,22 +87,74 @@ class Bubble {
     
     if (isFreezeModeActive) return false; // Bubbles don't move in freeze mode
 
+    // Apply movement with deltaTime normalization
     this.x += this.speedX * deltaTime * 60;
     this.y += this.speedY * deltaTime * 60;
     
-    // Wobble effect
-    this.x += Math.sin(now * this.wobbleSpeed + this.wobbleOffset);
-    this.y += Math.cos(now * this.wobbleSpeed + this.wobbleOffset);
+    // Subtle wobble effect (reduced for cleaner directional movement)
+    const wobbleAmount = 0.3; // Reduced wobble intensity
+    this.x += Math.sin(now * this.wobbleSpeed + this.wobbleOffset) * wobbleAmount;
+    this.y += Math.cos(now * this.wobbleSpeed + this.wobbleOffset) * wobbleAmount;
     
-    // Boundary checks to bounce
-    if (this.x - this.radius < 0 || this.x + this.radius > gameCanvas.width) {
-      this.speedX *= -1;
+    // Boundary checks with intelligent bounce direction
+    if (this.x - this.radius < 0) {
+      this.x = this.radius; // Prevent sticking
+      this.speedX = Math.abs(this.speedX); // Bounce right
+      this.intelligentBounce(gameCanvas);
+    } else if (this.x + this.radius > gameCanvas.width) {
+      this.x = gameCanvas.width - this.radius; // Prevent sticking
+      this.speedX = -Math.abs(this.speedX); // Bounce left
+      this.intelligentBounce(gameCanvas);
     }
-    if (this.y - this.radius < 0 || this.y + this.radius > gameCanvas.height) {
-      this.speedY *= -1;
+    
+    if (this.y - this.radius < 0) {
+      this.y = this.radius; // Prevent sticking
+      this.speedY = Math.abs(this.speedY); // Bounce down
+      this.intelligentBounce(gameCanvas);
+    } else if (this.y + this.radius > gameCanvas.height) {
+      this.y = gameCanvas.height - this.radius; // Prevent sticking
+      this.speedY = -Math.abs(this.speedY); // Bounce up
+      this.intelligentBounce(gameCanvas);
     }
 
     return false; // Return false if the bubble was not missed
+  }
+
+  // Intelligent bounce that adds variation and ensures movement toward open space
+  intelligentBounce(gameCanvas) {
+    // Add significant random angle variation (±45 degrees)
+    const angleVariation = (Math.random() - 0.5) * Math.PI / 2;
+    const currentAngle = Math.atan2(this.speedY, this.speedX);
+    const newAngle = currentAngle + angleVariation;
+    const speed = Math.sqrt(this.speedX ** 2 + this.speedY ** 2);
+    
+    // Apply new direction
+    this.speedX = Math.cos(newAngle) * speed;
+    this.speedY = Math.sin(newAngle) * speed;
+    
+    // Add a slight speed boost on bounce (10-20% increase)
+    const boostFactor = 1.1 + Math.random() * 0.1;
+    this.speedX *= boostFactor;
+    this.speedY *= boostFactor;
+    
+    // Cap maximum speed to prevent extreme velocities
+    const maxSpeed = 4;
+    const currentSpeed = Math.sqrt(this.speedX ** 2 + this.speedY ** 2);
+    if (currentSpeed > maxSpeed) {
+      this.speedX = (this.speedX / currentSpeed) * maxSpeed;
+      this.speedY = (this.speedY / currentSpeed) * maxSpeed;
+    }
+  }
+
+  // Add random variation to direction after collision
+  randomizeDirection() {
+    const angleVariation = (Math.random() - 0.5) * Math.PI / 1.5; // ±60 degrees
+    const currentAngle = Math.atan2(this.speedY, this.speedX);
+    const newAngle = currentAngle + angleVariation;
+    const speed = Math.sqrt(this.speedX ** 2 + this.speedY ** 2);
+    
+    this.speedX = Math.cos(newAngle) * speed;
+    this.speedY = Math.sin(newAngle) * speed;
   }
 
   pop(currentTime) {
@@ -121,7 +173,75 @@ class Bubble {
 }
 
 /**
- * Spawns a new bubble at a random location on the canvas.
+ * Check collision between two bubbles and handle bounce with improved physics
+ */
+function handleBubbleCollision(bubble1, bubble2) {
+  const dx = bubble2.x - bubble1.x;
+  const dy = bubble2.y - bubble1.y;
+  const distance = Math.sqrt(dx * dx + dy * dy);
+  const minDistance = bubble1.radius + bubble2.radius;
+
+  // Check if bubbles are colliding
+  if (distance < minDistance && distance > 0) {
+    // Calculate collision normal (unit vector from bubble1 to bubble2)
+    const nx = dx / distance;
+    const ny = dy / distance;
+
+    // Separate bubbles to prevent overlap
+    const overlap = minDistance - distance;
+    const separationX = nx * overlap * 0.5;
+    const separationY = ny * overlap * 0.5;
+    
+    bubble1.x -= separationX;
+    bubble1.y -= separationY;
+    bubble2.x += separationX;
+    bubble2.y += separationY;
+
+    // Calculate relative velocity
+    const dvx = bubble2.speedX - bubble1.speedX;
+    const dvy = bubble2.speedY - bubble1.speedY;
+
+    // Calculate relative velocity in collision normal direction
+    const dvn = dvx * nx + dvy * ny;
+
+    // Only bounce if bubbles are moving toward each other
+    if (dvn < 0) {
+      // Enhanced elastic collision with energy boost
+      const restitution = 1.15; // Slightly more than perfectly elastic (adds energy)
+      const bounceX = nx * dvn * restitution;
+      const bounceY = ny * dvn * restitution;
+
+      bubble1.speedX += bounceX;
+      bubble1.speedY += bounceY;
+      bubble2.speedX -= bounceX;
+      bubble2.speedY -= bounceY;
+
+      // Add random variation to make bounces more dynamic
+      bubble1.randomizeDirection();
+      bubble2.randomizeDirection();
+      
+      // Ensure minimum speed after collision
+      const minSpeed = 0.8;
+      const speed1 = Math.sqrt(bubble1.speedX ** 2 + bubble1.speedY ** 2);
+      const speed2 = Math.sqrt(bubble2.speedX ** 2 + bubble2.speedY ** 2);
+      
+      if (speed1 < minSpeed) {
+        const factor = minSpeed / speed1;
+        bubble1.speedX *= factor;
+        bubble1.speedY *= factor;
+      }
+      
+      if (speed2 < minSpeed) {
+        const factor = minSpeed / speed2;
+        bubble2.speedX *= factor;
+        bubble2.speedY *= factor;
+      }
+    }
+  }
+}
+
+/**
+ * Spawns a new bubble at a random location on the canvas with increased speed.
  * @param {number} now - Current timestamp.
  * @param {HTMLCanvasElement} canvas - The game canvas.
  * @param {Array<Bubble>} bubbles - The array to add the new bubble to.
@@ -137,9 +257,16 @@ function spawnBubble(now, canvas, bubbles, gameMode, type = null, speedMultiplie
         const x = Math.random() * (canvas.width - radius * 2) + radius;
         const y = Math.random() * (canvas.height - radius * 2) + radius;
         const color = getRandomColor();
-        const baseSpeed = 0.5;
-        const speedX = (Math.random() - 0.5) * baseSpeed * speedMultiplier;
-        const speedY = (Math.random() - 0.5) * baseSpeed * speedMultiplier;
+        
+        // Increased base speed from 0.5 to 1.5 (3x faster)
+        const baseSpeed = 1.5;
+        
+        // Generate random angle for initial direction
+        const angle = Math.random() * Math.PI * 2;
+        const speed = baseSpeed * (0.8 + Math.random() * 0.4); // Vary speed by ±20%
+        
+        const speedX = Math.cos(angle) * speed * speedMultiplier;
+        const speedY = Math.sin(angle) * speed * speedMultiplier;
 
         if (!type) {
             // Determine random type for new bubbles
@@ -163,4 +290,4 @@ function spawnBubble(now, canvas, bubbles, gameMode, type = null, speedMultiplie
     return false; // No bubble was spawned this frame
 }
 
-export { Bubble, spawnBubble };
+export { Bubble, spawnBubble, handleBubbleCollision };
