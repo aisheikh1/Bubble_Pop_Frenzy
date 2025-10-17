@@ -8,10 +8,25 @@
 }
 
 .game-title {
+  /* Set perspective for 3D transforms */
+  perspective: 600px; 
+  transform-style: preserve-3d;
+  /* Apply a subtle, continuous jiggle to the whole title */
+  animation: titleJiggle 6s ease-in-out infinite; 
+
   font-family: 'Bangers', cursive;
   font-size: 2.5rem;
-  color: white;
-  text-shadow: 3px 3px 0 rgba(0, 0, 0, 0.3);
+  color: white; /* Base color for the text body */
+  
+  /* NEW: Enhanced 3D Shadow/Bevel Effect */
+  text-shadow: 
+    /* 1. Bevel Highlight (Top-Left) */
+    1px 1px 0px rgba(255, 255, 255, 0.9), 
+    /* 2. Deep Shadow (Bottom-Right, adds depth) */
+    5px 5px 0px rgba(0, 0, 0, 0.4),
+    /* 3. Outer Glow (for a neon/arcade feel) */
+    0 0 10px rgba(255, 255, 255, 0.6);
+  
   margin-bottom: 0.5rem;
   letter-spacing: 2px;
 }
@@ -31,5 +46,102 @@
   
   .game-subtitle {
     font-size: 1rem;
+  }
+}
+
+/* -------------------------------------------------------- */
+/* --- ANIMATION KEYFRAMES --- */
+/* -------------------------------------------------------- */
+
+/* Keyframe for a subtle continuous whole-title movement */
+@keyframes titleJiggle {
+  0%, 100% { transform: translateY(0) rotateX(2deg) rotateZ(0deg); }
+  25% { transform: translateY(-3px) rotateX(-2deg) rotateZ(1deg); }
+  75% { transform: translateY(3px) rotateX(1deg) rotateZ(-1deg); }
+}
+
+/* P1: Moves right, rotates on collision, and returns */
+@keyframes squishPopP1 {
+  0%, 100% { 
+    transform: translateX(0) rotateY(0deg) scale(1); 
+  }
+  40% { 
+    transform: translateX(0) rotateY(0deg) scale(1.02, 1);
+  } 
+  45% { 
+    transform: translateX(12px) rotateY(0deg) scale(1, 1);
+  } 
+  50% { 
+    /* Collision: move in, stretch slightly, and rotate for 3D impact */
+    transform: translateX(12px) rotateY(-15deg) scale(1.2, 1); 
+    color: #ff4757; /* Flash color on impact */
+  } 
+  55% { 
+    transform: translateX(12px) rotateY(-5deg) scale(1.05, 1); 
+  } 
+  75% { 
+    transform: translateX(0) rotateY(0deg) scale(1); 
+    color: #4ecdc4; /* Reset color */
+  } 
+}
+
+/* P2: Moves left, rotates on collision, and returns */
+@keyframes squishPopP2 {
+  0%, 100% { 
+    transform: translateX(0) rotateY(0deg) scale(1); 
+  }
+  40% { 
+    transform: translateX(0) rotateY(0deg) scale(1.02, 1);
+  } 
+  45% { 
+    transform: translateX(-12px) rotateY(0deg) scale(1, 1); 
+  } 
+  50% { 
+    /* Collision: move in, stretch slightly, and rotate for 3D impact */
+    transform: translateX(-12px) rotateY(15deg) scale(1.2, 1); 
+    color: #ff4757; /* Flash color on impact */
+  } 
+  55% { 
+    transform: translateX(-12px) rotateY(5deg) scale(1.05, 1); 
+  } 
+  75% { 
+    transform: translateX(0) rotateY(0deg) scale(1); 
+    color: #4ecdc4; /* Reset color */
+  }
+}
+
+/* Bubble 'o': Squishes, pops explosively, disappears, and reappears smoothly */
+@keyframes bubbleSquishPop {
+  0%, 39% { 
+    opacity: 1; 
+    transform: scale(0.6, 1.2); 
+  }
+  40% { 
+    opacity: 1; 
+    transform: scale(1.5, 0.5); 
+  }
+  41% { 
+    /* The actual POP: brief, massive, colorful explosion */
+    opacity: 0; 
+    transform: scale(3.5); 
+    background: radial-gradient(circle at 50% 50%, #fff, #ff6b6b);
+    box-shadow: 0 0 50px 20px #ff6b6b, 0 0 100px 30px rgba(255, 255, 255, 0.5); /* Bright flash */
+  }
+  42% { 
+    opacity: 0; 
+    transform: scale(0);
+    box-shadow: none;
+  }
+  75% { 
+    opacity: 0; 
+    transform: scale(0); 
+  }
+  85% { 
+    opacity: 0;
+    transform: scale(0.1, 0.1);
+  }
+  100% { 
+    opacity: 1; 
+    transform: scale(0.6, 1.2); 
   }
 }
