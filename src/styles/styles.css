@@ -72,7 +72,7 @@ canvas.canvas-appearing {
   gap: 1rem;               /* spacing between buttons */
 }
 
-/* High-contrast circular button on cream background (#fffdd0) */
+/* High-contrast circular button - WHITE background with BLACK icons */
 .back-btn,
 .restart-btn,
 .pause-btn {
@@ -89,8 +89,8 @@ canvas.canvas-appearing {
   padding: 0;
   border: none;
   border-radius: 50%;
-  background: #222;        /* strong contrast with #fffdd0 */
-  color: #fff;
+  background: #FFFFFF;     /* WHITE background */
+  color: #222;             /* BLACK icon color */
   box-shadow: 0 6px 15px rgba(0,0,0,0.25);
   cursor: pointer;
   transform: translateZ(0);
@@ -107,7 +107,7 @@ canvas.canvas-appearing {
 .back-btn:active,
 .restart-btn:active,
 .pause-btn:active { 
-  filter: brightness(0.95); 
+  filter: brightness(0.9); /* Slightly darken on press */
 }
 
 /* Hidden by default; shown only during gameplay */
@@ -120,7 +120,7 @@ canvas.canvas-appearing {
 .back-btn:focus-visible,
 .restart-btn:focus-visible,
 .pause-btn:focus-visible {
-  outline: 3px solid #000;
+  outline: 3px solid #FFF;
   outline-offset: 3px;
 }
 
