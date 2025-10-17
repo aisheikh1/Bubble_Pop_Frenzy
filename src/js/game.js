@@ -90,6 +90,8 @@ const GAME_CONSTANTS = {
   FREEZE_DURATION: 5,
   COMBO_NEEDED: 10,
   BOMB_SPAWN_INTERVAL: 20000,
+  MIN_BUBBLES: 5,    // Minimum bubbles on canvas
+  MAX_BUBBLES: 10,   // Maximum bubbles on canvas
 };
 
 // ---------------------------
@@ -418,23 +420,40 @@ function gameLoop(now) {
     }
   }
 
+  // Count active (non-popped) bubbles
+  const activeBubbles = bubbles.filter(b => !b.popped).length;
+
   if (!isFreezeModeActive) {
-    const spawned = spawnBubble(now, gameCanvas, bubbles, gameMode, null, bubbleSpeedMultiplier, bubbleSpawnInterval);
-    if (spawned) {
-      totalBubblesSpawned++;
+    // Force spawn if below minimum
+    if (activeBubbles < GAME_CONSTANTS.MIN_BUBBLES) {
+      const spawned = spawnBubble(now, gameCanvas, bubbles, gameMode, null, bubbleSpeedMultiplier, 0); // 0 interval = instant spawn
+      if (spawned) {
+        totalBubblesSpawned++;
+      }
     }
+    // Normal spawn if below maximum
+    else if (activeBubbles < GAME_CONSTANTS.MAX_BUBBLES) {
+      const spawned = spawnBubble(now, gameCanvas, bubbles, gameMode, null, bubbleSpeedMultiplier, bubbleSpawnInterval);
+      if (spawned) {
+        totalBubblesSpawned++;
+      }
+    }
+    // Don't spawn if at or above maximum
     
     if (gameMode === 'survival' && now - lastBombSpawnTime > GAME_CONSTANTS.BOMB_SPAWN_INTERVAL) {
-      bombBubbleSpawnPending = true;
-      lastBombSpawnTime = now;
+      // Only spawn bomb if under max limit
+      if (activeBubbles < GAME_CONSTANTS.MAX_BUBBLES) {
+        bombBubbleSpawnPending = true;
+        lastBombSpawnTime = now;
+      }
     }
   }
   
-  if (freezeBubbleSpawnPending) {
+  if (freezeBubbleSpawnPending && activeBubbles < GAME_CONSTANTS.MAX_BUBBLES) {
     spawnBubble(now, gameCanvas, bubbles, gameMode, 'freeze');
     freezeBubbleSpawnPending = false;
   }
-  if (bombBubbleSpawnPending) {
+  if (bombBubbleSpawnPending && activeBubbles < GAME_CONSTANTS.MAX_BUBBLES) {
     spawnBubble(now, gameCanvas, bubbles, gameMode, 'bomb');
     bombBubbleSpawnPending = false;
   }
