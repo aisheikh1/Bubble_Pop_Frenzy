@@ -42,7 +42,8 @@ function initializeGameTitle() {
       const gameHeader = document.createElement('div');
       gameHeader.className = 'game-header';
       gameHeader.innerHTML = `
-        <h1 class="game-title">🎯 Bubble Pop Frenzy!</h1>
+        <h1 class="game-title">Bubble Pop Frenzy!</h1>
+        
         <div class="game-subtitle">Pop bubbles, score points, have fun!</div>
       `;
       
