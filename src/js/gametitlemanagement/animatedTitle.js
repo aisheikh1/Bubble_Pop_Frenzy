@@ -79,7 +79,7 @@ function animateTitle(element, animationType) {
  */
 function squishPopAnimation(element) {
   const targetText = "BUBBLE PoP FRENZY!";
-  const text = (element.textContent || targetText).trim().replace('POP', 'PoP');
+  const text = (element.textContent || targetText).trim().replace(/POP/gi, 'PoP');
   element.innerHTML = '';
   
   // Set up container for word layout and base style
@@ -94,8 +94,8 @@ function squishPopAnimation(element) {
     text-shadow: 3px 3px 0 rgba(0, 0, 0, 0.3);
   `;
   
-  // Split the text around the word "PoP"
-  const parts = text.split('PoP');
+  // Split the text around the word "PoP" and clean up whitespace
+  const parts = text.split(/PoP/i).map(part => part.trim());
   
   // Function to create a word span with an added subtle 3D tilt
   const setupWord = (word) => {
@@ -114,7 +114,9 @@ function squishPopAnimation(element) {
   };
   
   // 1. Setup BUBBLE (part 0)
-  setupWord(parts[0]);
+  if (parts[0]) {
+    setupWord(parts[0]);
+  }
   
   // --- Dynamic 'PoP' Container Setup ---
   const popContainer = document.createElement('span');
@@ -172,7 +174,9 @@ function squishPopAnimation(element) {
   // --- End Dynamic 'PoP' Container Setup ---
 
   // 5. Setup FRENZY! (part 1)
-  setupWord(parts[1]);
+  if (parts[1]) {
+    setupWord(parts[1]);
+  }
 
   // No specific cleanup needed as all persistent styles are applied inline or via CSS classes
   return () => {};
