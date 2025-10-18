@@ -82,33 +82,44 @@ function squishPopAnimation(element) {
   const text = (element.textContent || targetText).trim().replace(/POP/gi, 'PoP');
   element.innerHTML = '';
   
-  // Set up container for word layout and base style
+  // Set up container for word layout and base style with enhanced 3D
   element.style.cssText = `
     display: flex;
     justify-content: center;
     align-items: center;
-    gap: 8px; /* Space between words/parts */
+    gap: 12px;
     font-family: 'Bangers', cursive;
     font-size: 2.5rem;
     color: white;
-    text-shadow: 3px 3px 0 rgba(0, 0, 0, 0.3);
+    perspective: 1000px;
+    transform-style: preserve-3d;
   `;
   
   // Split the text around the word "PoP" and clean up whitespace
   const parts = text.split(/PoP/i).map(part => part.trim());
   
-  // Function to create a word span with an added subtle 3D tilt
+  // Enhanced 3D layered text shadow for depth
+  const create3DTextShadow = (color1 = '#ff6b6b', color2 = '#000') => {
+    let shadow = '';
+    for (let i = 1; i <= 8; i++) {
+      const alpha = 1 - (i * 0.1);
+      shadow += `${i}px ${i}px 0 ${color2}${Math.floor(alpha * 255).toString(16).padStart(2, '0')}, `;
+    }
+    shadow += `0 0 20px ${color1}80, 0 0 40px ${color1}40`;
+    return shadow;
+  };
+  
+  // Function to create a word span with enhanced 3D effect
   const setupWord = (word) => {
     const wordSpan = document.createElement('span');
     wordSpan.textContent = word;
-    // Apply subtle static 3D tilt to the non-animated words (to match the global jiggle)
     wordSpan.style.cssText = `
       display: inline-block;
-      transform: 
-        rotateX(${Math.random() * 4 - 2}deg) 
-        rotateY(${Math.random() * 4 - 2}deg) 
-        translateZ(${Math.random() * 10 - 5}px);
-      transform-origin: center;
+      transform-style: preserve-3d;
+      animation: word3DFloat 4s ease-in-out infinite;
+      animation-delay: ${Math.random() * 0.5}s;
+      text-shadow: ${create3DTextShadow('#4ecdc4', '#000')};
+      filter: drop-shadow(0 4px 8px rgba(0,0,0,0.4));
     `;
     element.appendChild(wordSpan);
   };
