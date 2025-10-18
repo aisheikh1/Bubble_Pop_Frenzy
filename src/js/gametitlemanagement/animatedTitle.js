@@ -433,12 +433,12 @@ function squishPopAnimation(element) {
       }
       41% { 
         opacity: 0.8; 
-        transform: scale(4) translateZ(30px) rotateZ(5deg);
+        transform: scale(2.5) translateZ(30px) rotateZ(5deg);
         background: radial-gradient(circle at 50% 50%, #fff, #ff6b6b);
         box-shadow: 
-          0 0 60px 30px rgba(255, 107, 107, 0.9), 
-          0 0 120px 40px rgba(255, 255, 255, 0.6);
-        filter: brightness(2);
+          0 0 15px 7.5px rgba(255, 107, 107, 0.225), 
+          0 0 30px 10px rgba(255, 255, 255, 0.15);
+        filter: brightness(1.25);
       }
       42% { 
         opacity: 0; 
