@@ -27,10 +27,10 @@ export class PauseButton {
       this._handler();
     });
     
-    this.button.addEventListener('click', (e) => {
-      e.preventDefault();
-      this._handler();
-    });
+    //this.button.addEventListener('click', (e) => {
+    //  e.preventDefault();
+    //  this._handler();
+    //});
   }
 
   /**
