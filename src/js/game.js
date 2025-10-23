@@ -18,10 +18,23 @@ import { showMessageBox, hideMessageBox } from './ui/messageBox.js';
 import { FloatingTextEffect } from './effects/FloatingTextEffect.js';
 import { effects } from './effects/EffectManager.js';
 import { GiftUnwrapEffect } from './effects/GiftUnwrapEffect.js';
-import { BombPrimedEffect } from './effects/BombPrimedEffect.js';
 import { ExplosionEffect } from './effects/ExplosionEffect.js';
 import { ScreenFlashEffect } from './effects/ScreenFlashEffect.js';
 import { CountdownTextEffect } from './effects/CountdownTextEffect.js';
+
+// SCORING: point to your actual folder
+import { scoringService } from './ScoringEngine/index.js';
+
+/* ---------------------------
+   Compatibility shim
+   ---------------------------
+   Some older code (e.g., bubbles.js) calls effects.add(...),
+   while the current EffectManager exposes effects.spawn(...).
+   This shim aliases add -> spawn to avoid TypeErrors.
+*/
+if (effects && typeof effects.add !== 'function' && typeof effects.spawn === 'function') {
+  effects.add = (...args) => effects.spawn(...args);
+}
 
 // ---------------------------
 // Game State Variables
@@ -32,7 +45,6 @@ let gamePrepared = false;
 let gamePaused = false;
 
 // Time & Scoring
-let score = 0;
 let consecutivePops = 0;
 let consecutiveNormalPops = 0;
 
@@ -90,119 +102,82 @@ const GAME_CONSTANTS = {
   FREEZE_DURATION: 5,
   COMBO_NEEDED: 10,
   BOMB_SPAWN_INTERVAL: 20000,
-  MIN_BUBBLES: 5,    // Minimum bubbles on canvas
-  MAX_BUBBLES: 10,   // Maximum bubbles on canvas
+  MIN_BUBBLES: 5,
+  MAX_BUBBLES: 10
 };
 
 // ---------------------------
-// Game Functions
+// Helpers
 // ---------------------------
-
-function setBackButtonVisible(visible) {
-  if (gameConfig?.backButton) {
-    visible ? gameConfig.backButton.show() : gameConfig.backButton.hide();
-  }
+function spawnPointsText(points, x, y, color) {
+  const sign = points > 0 ? '+' : '';
+  effects.spawn(new FloatingTextEffect(x, y, sign + String(points), color || '#ffffff'));
 }
 
-function setRestartButtonVisible(visible) {
-  if (gameConfig?.restartButton) {
-    visible ? gameConfig.restartButton.show() : gameConfig.restartButton.hide();
-  }
+function setBackButtonVisible(v) {
+  if (gameConfig && gameConfig.backButton) (v ? gameConfig.backButton.show() : gameConfig.backButton.hide());
 }
-
-function setPauseButtonVisible(visible) {
-  if (gameConfig?.pauseButton) {
-    visible ? gameConfig.pauseButton.show() : gameConfig.pauseButton.hide();
-  }
+function setRestartButtonVisible(v) {
+  if (gameConfig && gameConfig.restartButton) (v ? gameConfig.restartButton.show() : gameConfig.restartButton.hide());
+}
+function setPauseButtonVisible(v) {
+  if (gameConfig && gameConfig.pauseButton) (v ? gameConfig.pauseButton.show() : gameConfig.pauseButton.hide());
 }
 
 function showPauseOverlay() {
-  if (!pauseOverlay && gameConfig?.canvasManager) {
+  if (!pauseOverlay) {
     pauseOverlay = document.createElement('div');
     pauseOverlay.className = 'paused-overlay';
     pauseOverlay.textContent = 'Game Paused';
-    
-    // Insert overlay relative to game container
     const container = document.querySelector('.game-container');
-    if (container) {
-      container.appendChild(pauseOverlay);
-    }
+    if (container) container.appendChild(pauseOverlay);
   }
 }
-
 function hidePauseOverlay() {
   if (pauseOverlay) {
     pauseOverlay.remove();
     pauseOverlay = null;
   }
 }
-
 function togglePause() {
-  if (!gameActive || !gamePrepared) {
-    return; // Can't pause if game isn't running
-  }
-
+  if (!gameActive || !gamePrepared) return;
   gamePaused = !gamePaused;
-
-  if (gameConfig?.pauseButton) {
-    gameConfig.pauseButton.toggle();
-  }
-
-  if (gamePaused) {
-    showPauseOverlay();
-  } else {
+  if (gameConfig && gameConfig.pauseButton) gameConfig.pauseButton.toggle();
+  if (gamePaused) showPauseOverlay();
+  else {
     hidePauseOverlay();
-    // Reset lastFrameTime to prevent time jump
     lastFrameTime = performance.now();
   }
 }
 
 function restartGame() {
-  // Stop any running loop cleanly
   gameActive = false;
   gamePrepared = false;
   gamePaused = false;
   if (animFrameId) cancelAnimationFrame(animFrameId);
-
-  // Hide pause overlay if visible
   hidePauseOverlay();
+  if (gameConfig && gameConfig.pauseButton) gameConfig.pauseButton.reset();
 
-  // Reset pause button state
-  if (gameConfig?.pauseButton) {
-    gameConfig.pauseButton.reset();
-  }
-
-  // Reset current playfield
   bubbles = [];
 
-  // Re-prepare the *same* mode using existing config
   if (gameConfig && gameMode) {
-    prepareGame(gameConfig, gameMode);  // shows canvas, reveals buttons, runs countdown
+    prepareGame(gameConfig, gameMode);
   }
 }
 
 function goToMainMenu() {
-  // stop the loop if running
   gameActive = false;
   gamePrepared = false;
   gamePaused = false;
   if (animFrameId) cancelAnimationFrame(animFrameId);
-
-  // Hide pause overlay if visible
   hidePauseOverlay();
+  if (gameConfig && gameConfig.pauseButton) gameConfig.pauseButton.reset();
 
-  // Reset pause button state
-  if (gameConfig?.pauseButton) {
-    gameConfig.pauseButton.reset();
-  }
-
-  // hide canvas and buttons
-  if (gameConfig?.canvasManager) gameConfig.canvasManager.hide();
+  if (gameConfig && gameConfig.canvasManager) gameConfig.canvasManager.hide();
   setBackButtonVisible(false);
   setRestartButtonVisible(false);
   setPauseButtonVisible(false);
 
-  // show mode selection
   showModeSelection();
 }
 
@@ -210,26 +185,24 @@ async function startCountdown(config) {
   const countdownValues = ['3', '2', '1', 'Pop!'];
   let countdownRunning = true;
   let last = performance.now();
-  
-  // Temporary render loop just for the countdown effects
-  function countdownLoop(now) {
+
+  function loop(now) {
     if (!countdownRunning) return;
     const dt = (now - last) / 1000;
     last = now;
     config.canvasManager.clear();
     effects.update(dt, now);
     effects.draw(config.canvasManager.context);
-    requestAnimationFrame(countdownLoop);
+    requestAnimationFrame(loop);
   }
-  requestAnimationFrame(countdownLoop);
-  
-  // Spawn each step of the countdown, letting the temp loop render them
-  for (const value of countdownValues) {
-    effects.spawn(new CountdownTextEffect(value, 500));
+  requestAnimationFrame(loop);
+
+  for (let i = 0; i < countdownValues.length; i++) {
+    effects.spawn(new CountdownTextEffect(countdownValues[i], 500));
+    // eslint-disable-next-line no-await-in-loop
     await new Promise(r => setTimeout(r, 500));
   }
-  
-  // Stop the temp loop and start the real game
+
   countdownRunning = false;
   actuallyStartGame();
 }
@@ -239,48 +212,41 @@ function handleDifficultyIncrease(now) {
     effects.spawn(new ScreenFlashEffect('yellow', 0.3));
     flashTriggered = true;
   }
-  
+
   if (now - lastDifficultyIncreaseTime > GAME_CONSTANTS.DIFFICULTY_INCREASE_INTERVAL) {
-    difficultyLevel++;
+    difficultyLevel += 1;
     flashTriggered = false;
-    
+
     let speedIncreaseAmount = 0.4;
-    let showMessage = true;
+    let showMsg = true;
 
     if (lastIncreaseType === 'spawn') {
       if (playerMissRate > GAME_CONSTANTS.MAX_ALLOWED_MISS_RATE) {
         speedIncreaseAmount = 0.3;
         showDifficultyEaseUp(difficultyLevel);
-        showMessage = false;
+        showMsg = false;
       } else {
         speedIncreaseAmount = 0.5;
       }
-      
       bubbleSpeedMultiplier = Math.min(bubbleSpeedMultiplier + speedIncreaseAmount, GAME_CONSTANTS.MAX_SPEED_MULTIPLIER);
-      if (showMessage) {
-        showFasterBubbles(difficultyLevel);
-      }
+      if (showMsg) showFasterBubbles(difficultyLevel);
       effects.spawn(new ScreenFlashEffect('lime', 0.4));
       lastIncreaseType = 'speed';
-      
     } else {
       if (playerMissRate > GAME_CONSTANTS.MAX_ALLOWED_MISS_RATE) {
         bubbleSpawnInterval = Math.max(bubbleSpawnInterval * 0.85, GAME_CONSTANTS.MIN_SPAWN_INTERVAL);
         showDifficultyEaseUp(difficultyLevel);
-        showMessage = false;
+        showMsg = false;
       } else {
         bubbleSpawnInterval = Math.max(bubbleSpawnInterval * 0.7, GAME_CONSTANTS.MIN_SPAWN_INTERVAL);
       }
-      
       effects.spawn(new ScreenFlashEffect('cyan', 0.4));
-      if (showMessage) {
-        showMoreBubbles(difficultyLevel);
-      }
+      if (showMsg) showMoreBubbles(difficultyLevel);
       lastIncreaseType = 'spawn';
     }
-    
+
     lastDifficultyIncreaseTime = now;
-    
+
     if (difficultyLevel % 3 === 0) {
       showMaximumIntensity();
       effects.spawn(new ScreenFlashEffect('orange', 0.6));
@@ -294,8 +260,8 @@ async function prepareGame(config, mode) {
   gameCtx = config.canvasManager.context;
   gameMode = mode;
 
+  // Reset gameplay state
   bubbles = [];
-  score = 0;
   consecutivePops = 0;
   consecutiveNormalPops = 0;
   freezeBubbleSpawnPending = false;
@@ -314,31 +280,31 @@ async function prepareGame(config, mode) {
   totalBubblesSpawned = 0;
   playerMissRate = 0;
   gamePaused = false;
-  
-  // Reset pause button
-  if (gameConfig?.pauseButton) {
-    gameConfig.pauseButton.reset();
+
+  // Reset scoring
+  if (scoringService && typeof scoringService.reset === 'function') {
+    scoringService.reset();
   }
-  
-  // Hide pause overlay if visible
+
+  if (gameConfig && gameConfig.pauseButton) gameConfig.pauseButton.reset();
   hidePauseOverlay();
-  
+
   if (gameMode === 'classic') {
     classicTimeLeft = 60;
-  } else if (gameMode === 'survival') {
+  } else {
     survivalTimeLeft = 60;
   }
-  
+
   updateUI();
-  gameConfig.gameInfo.style.display = 'flex';
-  gameConfig.modeDisplay.textContent = gameMode === 'classic' ? 'Classic Mode' : 'Survival Mode';
+  config.gameInfo.style.display = 'flex';
+  config.modeDisplay.textContent = gameMode === 'classic' ? 'Classic Mode' : 'Survival Mode';
 
   await config.canvasManager.showWithAnimation();
   setBackButtonVisible(true);
   setPauseButtonVisible(true);
   setRestartButtonVisible(true);
   startCountdown(config);
-  
+
   gamePrepared = true;
 }
 
@@ -347,13 +313,13 @@ function actuallyStartGame() {
     console.warn('Game not prepared. Call prepareGame first.');
     return;
   }
-  
+
   if (gameMode === 'classic') {
     classicStartTime = performance.now();
   }
-  
+
   lastDifficultyIncreaseTime = performance.now();
-  
+
   gameActive = true;
   gamePaused = false;
   lastFrameTime = performance.now();
@@ -368,16 +334,11 @@ async function startGame(config, mode) {
 function gameLoop(now) {
   animFrameId = requestAnimationFrame(gameLoop);
 
-  // If paused, skip all game logic but keep rendering
   if (gamePaused) {
-    // Still render the current state (frozen frame)
     gameConfig.canvasManager.clear();
-    
     for (let i = bubbles.length - 1; i >= 0; i--) {
-      const bubble = bubbles[i];
-      bubble.draw(gameCtx, now);
+      bubbles[i].draw(gameCtx, now);
     }
-    
     effects.draw(gameCtx);
     return;
   }
@@ -385,9 +346,7 @@ function gameLoop(now) {
   const deltaTime = (now - lastFrameTime) / 1000;
   lastFrameTime = now;
 
-  if (!gameActive) {
-    return;
-  }
+  if (!gameActive) return;
 
   if (gameMode === 'classic') {
     classicTimeLeft -= deltaTime;
@@ -395,7 +354,7 @@ function gameLoop(now) {
       classicTimeLeft = 0;
       endGame();
     }
-  } else if (gameMode === 'survival') {
+  } else {
     if (isFreezeModeActive) {
       freezeModeTimeLeft -= deltaTime;
       if (freezeModeTimeLeft <= 0) {
@@ -410,45 +369,35 @@ function gameLoop(now) {
         endGame();
       }
     }
-    
+
     if (totalBubblesSpawned > 0) {
       playerMissRate = bubblesMissed / totalBubblesSpawned;
     }
 
-    if (gameMode === 'survival' && !isFreezeModeActive) {
+    if (!isFreezeModeActive) {
       handleDifficultyIncrease(now);
     }
   }
 
-  // Count active (non-popped) bubbles
   const activeBubbles = bubbles.filter(b => !b.popped).length;
 
   if (!isFreezeModeActive) {
-    // Force spawn if below minimum
     if (activeBubbles < GAME_CONSTANTS.MIN_BUBBLES) {
-      const spawned = spawnBubble(now, gameCanvas, bubbles, gameMode, null, bubbleSpeedMultiplier, 0); // 0 interval = instant spawn
-      if (spawned) {
-        totalBubblesSpawned++;
-      }
-    }
-    // Normal spawn if below maximum
-    else if (activeBubbles < GAME_CONSTANTS.MAX_BUBBLES) {
+      const spawned = spawnBubble(now, gameCanvas, bubbles, gameMode, null, bubbleSpeedMultiplier, 0);
+      if (spawned) totalBubblesSpawned += 1;
+    } else if (activeBubbles < GAME_CONSTANTS.MAX_BUBBLES) {
       const spawned = spawnBubble(now, gameCanvas, bubbles, gameMode, null, bubbleSpeedMultiplier, bubbleSpawnInterval);
-      if (spawned) {
-        totalBubblesSpawned++;
-      }
+      if (spawned) totalBubblesSpawned += 1;
     }
-    // Don't spawn if at or above maximum
-    
+
     if (gameMode === 'survival' && now - lastBombSpawnTime > GAME_CONSTANTS.BOMB_SPAWN_INTERVAL) {
-      // Only spawn bomb if under max limit
       if (activeBubbles < GAME_CONSTANTS.MAX_BUBBLES) {
         bombBubbleSpawnPending = true;
         lastBombSpawnTime = now;
       }
     }
   }
-  
+
   if (freezeBubbleSpawnPending && activeBubbles < GAME_CONSTANTS.MAX_BUBBLES) {
     spawnBubble(now, gameCanvas, bubbles, gameMode, 'freeze');
     freezeBubbleSpawnPending = false;
@@ -457,20 +406,26 @@ function gameLoop(now) {
     spawnBubble(now, gameCanvas, bubbles, gameMode, 'bomb');
     bombBubbleSpawnPending = false;
   }
-  
+
   gameConfig.canvasManager.clear();
-  
-  // Update all bubbles
+
   for (let i = bubbles.length - 1; i >= 0; i--) {
     const bubble = bubbles[i];
-    
-    const wasMissed = bubble.update(deltaTime, now, gameMode, isFreezeModeActive, showUrgentMessage, endGame, gameCanvas);
-    
-    if (wasMissed) {
+    const missed = bubble.update(
+      deltaTime,
+      now,
+      gameMode,
+      isFreezeModeActive,
+      showUrgentMessage,
+      endGame,
+      gameCanvas
+    );
+
+    if (missed) {
       if (gameMode === 'survival') {
         survivalTimeLeft -= GAME_CONSTANTS.TIME_PENALTY_PER_MISS;
-        effects.spawn(new FloatingTextEffect(gameCanvas.width / 2, 50, `-${GAME_CONSTANTS.TIME_PENALTY_PER_MISS}s`, '#ff5555'));
-        bubblesMissed++;
+        effects.spawn(new FloatingTextEffect(gameCanvas.width / 2, 50, '-2s', '#ff5555'));
+        bubblesMissed += 1;
         consecutivePops = 0;
         consecutiveNormalPops = 0;
       }
@@ -480,23 +435,21 @@ function gameLoop(now) {
       bubbles.splice(i, 1);
     }
   }
-  
-  // Check collisions between all bubble pairs (only if not frozen)
+
   if (!isFreezeModeActive) {
     for (let i = 0; i < bubbles.length; i++) {
-      if (bubbles[i].popped) continue; // Skip popped bubbles
+      if (bubbles[i].popped) continue;
       for (let j = i + 1; j < bubbles.length; j++) {
-        if (bubbles[j].popped) continue; // Skip popped bubbles
+        if (bubbles[j].popped) continue;
         handleBubbleCollision(bubbles[i], bubbles[j]);
       }
     }
   }
-  
-  // Draw all bubbles
+
   for (let i = 0; i < bubbles.length; i++) {
     bubbles[i].draw(gameCtx, now);
   }
-  
+
   effects.update(deltaTime, now);
   effects.draw(gameCtx);
 
@@ -504,22 +457,25 @@ function gameLoop(now) {
 }
 
 function handleCanvasPointerDown(x, y) {
-  if (!gameActive || gamePaused) return; // Can't pop bubbles when paused
+  if (!gameActive || gamePaused) return;
 
   let poppedAny = false;
 
   for (let i = bubbles.length - 1; i >= 0; i--) {
     const bubble = bubbles[i];
-    const distance = Math.sqrt((x - bubble.x) ** 2 + (y - bubble.y) ** 2);
+    const dx = x - bubble.x;
+    const dy = y - bubble.y;
+    const distance = Math.sqrt(dx * dx + dy * dy);
 
     if (distance <= bubble.radius) {
       if (bubble.type === 'decoy') {
-        score -= 50;
+        const res = scoringService.handleBubblePop('decoy');
         survivalTimeLeft -= GAME_CONSTANTS.TIME_PENALTY_PER_DECOY;
         effects.spawn(new ScreenFlashEffect('red'));
         showOuchPenalty();
-        effects.spawn(new FloatingTextEffect(gameCanvas.width / 2, 50, `-${GAME_CONSTANTS.TIME_PENALTY_PER_DECOY}s`, '#ff5555'));
-        
+        effects.spawn(new FloatingTextEffect(gameCanvas.width / 2, 50, '-5s', '#ff5555'));
+        spawnPointsText(res.pointsEarned, bubble.x, bubble.y, '#ff7777');
+
         bubble.popped = true;
         poppedAny = true;
         consecutivePops = 0;
@@ -533,6 +489,9 @@ function handleCanvasPointerDown(x, y) {
           showTimeFreeze();
           effects.spawn(new GiftUnwrapEffect(bubble.x, bubble.y, bubble.radius, bubble.color));
         }
+        const res = scoringService.handleBubblePop('freeze');
+        spawnPointsText(res.pointsEarned, bubble.x, bubble.y, '#88ccff');
+
         bubble.popped = true;
         poppedAny = true;
         consecutivePops = 0;
@@ -543,45 +502,49 @@ function handleCanvasPointerDown(x, y) {
         effects.spawn(new ScreenFlashEffect('orange'));
         showBoom();
         bubbles = [];
-        
+
+        const res = scoringService.handleBubblePop('bomb');
+        spawnPointsText(res.pointsEarned, bubble.x, bubble.y, '#ffbb33');
+
         bubble.popped = true;
         poppedAny = true;
         consecutivePops = 0;
         consecutiveNormalPops = 0;
         break;
       }
-      
+
       if (bubble.pop(performance.now())) {
-        score += 10;
+        const res = scoringService.handleBubblePop(bubble.type);
+        spawnPointsText(res.pointsEarned, bubble.x, bubble.y, bubble.color || '#ffffff');
         poppedAny = true;
-        
+
         if (gameMode === 'survival') {
           if (bubble.type === 'normal') {
-            consecutiveNormalPops++;
+            consecutiveNormalPops += 1;
             if (consecutiveNormalPops % 2 === 0) {
               survivalTimeLeft += 1;
-              effects.spawn(new FloatingTextEffect(gameCanvas.width / 2, 50, "+1s", bubble.color));
+              effects.spawn(new FloatingTextEffect(gameCanvas.width / 2, 50, '+1s', bubble.color));
             }
           } else if (bubble.type === 'double') {
             survivalTimeLeft += GAME_CONSTANTS.TIME_BONUS_PER_DOUBLE_TAP;
-            effects.spawn(new FloatingTextEffect(gameCanvas.width / 2, 50, "+1s", bubble.initialColor));
+            effects.spawn(new FloatingTextEffect(gameCanvas.width / 2, 50, '+1s', bubble.initialColor || '#ffffff'));
             consecutiveNormalPops = 0;
+            showDoublePop();
           } else {
             consecutiveNormalPops = 0;
           }
-
-          survivalTimeLeft = Math.min(survivalTimeLeft, 90); 
+          survivalTimeLeft = Math.min(survivalTimeLeft, 90);
         }
 
-        consecutivePops++;
-        if (gameMode === 'survival' && (consecutivePops % GAME_CONSTANTS.COMBO_NEEDED === 0) && !freezeBubbleSpawnPending && !isFreezeModeActive) {
+        consecutivePops += 1;
+        if (
+          gameMode === 'survival' &&
+          (consecutivePops % GAME_CONSTANTS.COMBO_NEEDED === 0) &&
+          !freezeBubbleSpawnPending &&
+          !isFreezeModeActive
+        ) {
           freezeBubbleSpawnPending = true;
           showFreezeReady();
-        }
-        
-        if (bubble.tapsNeeded === 2) {
-          score += 10;
-          showDoublePop();
         }
 
         if ('vibrate' in navigator) {
@@ -600,15 +563,18 @@ function handleCanvasPointerDown(x, y) {
 }
 
 function updateUI() {
-  gameConfig.scoreDisplay.textContent = `Score: ${score}`;
-  
+  const stats = scoringService.getCurrentStats();
+  const totalScore = (stats && typeof stats.totalScore === 'number') ? stats.totalScore : 0;
+
+  gameConfig.scoreDisplay.textContent = 'Score: ' + String(totalScore);
+
   if (gameMode === 'classic') {
-    gameConfig.classicTimerDisplay.textContent = `Time: ${Math.floor(classicTimeLeft)}s`;
+    gameConfig.classicTimerDisplay.textContent = 'Time: ' + String(Math.floor(classicTimeLeft)) + 's';
     gameConfig.classicTimerDisplay.style.display = 'inline';
     gameConfig.survivalStatsDisplay.style.display = 'none';
-  } else if (gameMode === 'survival') {
+  } else {
     gameConfig.survivalStatsDisplay.style.display = 'inline';
-    gameConfig.survivalTimeElapsedDisplay.textContent = `Time: ${Math.floor(survivalTimeLeft)}s`;
+    gameConfig.survivalTimeElapsedDisplay.textContent = 'Time: ' + String(Math.floor(survivalTimeLeft)) + 's';
     gameConfig.survivalMissesDisplay.style.display = 'none';
   }
 }
@@ -617,37 +583,22 @@ function endGame() {
   gameActive = false;
   gamePrepared = false;
   gamePaused = false;
-  cancelAnimationFrame(animFrameId);
-  gameConfig.canvasManager.hide();
+  if (animFrameId) cancelAnimationFrame(animFrameId);
+  if (gameConfig && gameConfig.canvasManager) gameConfig.canvasManager.hide();
   setBackButtonVisible(false);
   setPauseButtonVisible(false);
   setRestartButtonVisible(false);
-
-  // Hide pause overlay if visible
   hidePauseOverlay();
+  if (gameConfig && gameConfig.pauseButton) gameConfig.pauseButton.reset();
 
-  // Reset pause button
-  if (gameConfig?.pauseButton) {
-    gameConfig.pauseButton.reset();
-  }
+  const stats = scoringService.getCurrentStats();
+  const totalScore = (stats && typeof stats.totalScore === 'number') ? stats.totalScore : 0;
 
-  if (gameMode === 'classic') {
-    showMessageBox(
-      "Time's Up!",
-      `Your final score is: ${score} points`, [{
-        label: "Go to Main Menu",
-        action: () => goToMainMenu()
-      }]
-    );
-  } else if (gameMode === 'survival') {
-    showMessageBox(
-      "Time's Up!",
-      `Your final score is: ${score} points`, [{
-        label: "Go to Main Menu",
-        action: () => goToMainMenu()
-      }]
-    );
-  }
+  showMessageBox(
+    "Time's Up!",
+    'Your final score is: ' + String(totalScore) + ' points',
+    [{ label: 'Go to Main Menu', action: () => goToMainMenu() }]
+  );
 }
 
 async function showModeSelection() {
@@ -656,22 +607,14 @@ async function showModeSelection() {
   setBackButtonVisible(false);
   setPauseButtonVisible(false);
   setRestartButtonVisible(false);
-  
+
   showMessageBox(
-    "Select Mode",
-    "Choose your game mode:", [{
-      label: "Classic Mode",
-      action: async () => {
-        await hideMessageBox();
-        startGame(gameConfig, 'classic');
-      }
-    }, {
-      label: "Survival Mode",
-      action: async () => {
-        await hideMessageBox();
-        startGame(gameConfig, 'survival');
-      }
-    }]
+    'Select Mode',
+    'Choose your game mode:',
+    [
+      { label: 'Classic Mode', action: async () => { await hideMessageBox(); startGame(gameConfig, 'classic'); } },
+      { label: 'Survival Mode', action: async () => { await hideMessageBox(); startGame(gameConfig, 'survival'); } }
+    ]
   );
 }
 
