@@ -1,26 +1,41 @@
-// Minimal “pop” sparkle effect to satisfy imports and look decent
+// src/js/effects/PopEffect.js
+// -----------------------------------------------------------------------------
+// This is a no-op replacement for the PopEffect animation.
+// It prevents errors or broken imports in Bubble.pop(), but disables
+// the visual pop animation entirely.
+// -----------------------------------------------------------------------------
+
 export class PopEffect {
-  constructor(x, y, radius = 20, color = '#ffffff') {
-    this.x = x; this.y = y;
+  /**
+   * @param {number} [x] - X position of the bubble pop.
+   * @param {number} [y] - Y position of the bubble pop.
+   * @param {number} [radius] - Bubble radius.
+   * @param {string} [color] - Bubble color.
+   */
+  constructor(x = 0, y = 0, radius = 0, color = '#ffffff') {
+    this.x = x;
+    this.y = y;
     this.radius = radius;
     this.color = color;
-    this.life = 180; // ms
-    this.elapsed = 0;
+    this.finished = true; // instantly finished
   }
-  update(dtMs /* number */, /* nowMs */) {
-    this.elapsed += dtMs;
-    return this.elapsed >= this.life; // true => finished
+
+  /**
+   * Update the effect. Normally handles lifespan and fade timing.
+   * Here it returns true immediately, signalling completion.
+   * @param {number} dt - delta time in seconds
+   * @param {number} now - current timestamp
+   * @returns {boolean} true = finished
+   */
+  update(dt, now) {
+    return true;
   }
+
+  /**
+   * Draw the effect. Does nothing (no animation).
+   * @param {CanvasRenderingContext2D} ctx
+   */
   draw(ctx) {
-    const t = Math.min(1, this.elapsed / this.life);
-    const r = this.radius * (1 + t * 0.6);
-    ctx.save();
-    ctx.globalAlpha = 1 - t;
-    ctx.beginPath();
-    ctx.arc(this.x, this.y, r, 0, Math.PI * 2);
-    ctx.strokeStyle = this.color;
-    ctx.lineWidth = 2;
-    ctx.stroke();
-    ctx.restore();
+    // intentionally blank — no visual output
   }
 }
