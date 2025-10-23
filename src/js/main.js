@@ -8,7 +8,7 @@ import { BackButton } from './ui/BackButton.js';
 import { RestartButton } from './ui/RestartButton.js';
 import { PauseButton } from './ui/PauseButton.js';
 
-// SCORING: point to your actual folder
+// SCORING (still imported for game integration)
 import { scoringService } from './ScoringEngine/index.js';
 
 // DOM elements (filled on load)
@@ -77,46 +77,9 @@ async function showMainMenu(gameConfig) {
   );
 }
 
-// Safe DOM build of the Points Legend (no template literals with user content)
-function buildPointsLegend(parentEl) {
-  try {
-    const pv = scoringService.getPointValues();
-
-    const legend = document.createElement('div');
-    legend.id = 'pointsLegend';
-    legend.setAttribute('aria-live', 'polite');
-    legend.style.marginLeft = '1rem';
-    legend.style.fontSize = '0.9rem';
-    legend.style.opacity = '0.9';
-
-    const strong = document.createElement('strong');
-    strong.textContent = 'Points:';
-    legend.appendChild(strong);
-
-    const items = [
-      ['Normal', pv.NORMAL],
-      ['Double', pv.DOUBLE],
-      ['Decoy', pv.DECOY],
-      ['Freeze', pv.FREEZE],
-      ['Bomb', pv.BOMB]
-    ];
-
-    for (let i = 0; i < items.length; i++) {
-      const span = document.createElement('span');
-      span.style.marginLeft = '.5rem';
-      const name = String(items[i][0]);
-      const val = Number(items[i][1] || 0);
-      const sign = val > 0 ? '+' : '';
-      span.textContent = name + ' ' + sign + String(val);
-      legend.appendChild(span);
-    }
-
-    parentEl.appendChild(legend);
-  } catch (e) {
-    console.warn('Could not create points legend:', e);
-  }
-}
-
+// -----------------------------------------------------------------------------
+// window.onload — Main initialization
+// -----------------------------------------------------------------------------
 window.addEventListener('load', () => {
   preloadTitleAnimations();
 
@@ -164,9 +127,10 @@ window.addEventListener('load', () => {
     restartButton
   };
 
-  if (gameInfo) {
-    buildPointsLegend(gameInfo);
-  }
+  // ---------------------------------------------------------------------------
+  // The following call previously added the "Points Legend" UI.
+  // It has been removed per Option A.
+  // ---------------------------------------------------------------------------
 
   showMainMenu(gameConfig);
 
