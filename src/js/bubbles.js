@@ -249,6 +249,7 @@ function handleBubbleCollision(bubble1, bubble2) {
  * @param {string} type - The type of bubble to spawn ('normal', 'double', 'freeze', 'decoy', 'bomb').
  * @param {number} speedMultiplier - Multiplier to increase bubble speed.
  * @param {number} spawnInterval - The interval between spawns.
+ * @returns {boolean} True if a bubble was spawned, false otherwise.
  */
 let lastSpawnTime = 0;
 function spawnBubble(now, canvas, bubbles, gameMode, type = null, speedMultiplier = 1, spawnInterval = 1000) {
@@ -290,4 +291,290 @@ function spawnBubble(now, canvas, bubbles, gameMode, type = null, speedMultiplie
     return false; // No bubble was spawned this frame
 }
 
-export { Bubble, spawnBubble, handleBubbleCollision };
+// ============================================================================
+// UTILITY FUNCTIONS - For frenzy mode and advanced bubble management
+// ============================================================================
+
+/**
+ * Spawn multiple bubbles instantly without timing constraints
+ * Used by frenzy mode to fill the canvas quickly
+ * 
+ * @param {number} count - Number of bubbles to spawn
+ * @param {HTMLCanvasElement} canvas - The game canvas
+ * @param {Array<Bubble>} bubbles - Existing bubbles array
+ * @param {string} type - Bubble type to spawn (default: 'normal')
+ * @param {number} now - Current timestamp
+ * @param {Object} options - Optional configuration
+ * @param {number} options.minRadius - Minimum bubble radius (default: 20)
+ * @param {number} options.maxRadius - Maximum bubble radius (default: 40)
+ * @param {number} options.minSpeed - Minimum initial speed (default: 0.3)
+ * @param {number} options.maxSpeed - Maximum initial speed (default: 0.8)
+ * @param {number} options.minSpacing - Minimum spacing between bubbles (default: 10)
+ * @param {number} options.maxAttempts - Max spawn attempts per bubble (default: 50)
+ * @returns {Array<Bubble>} Array of newly spawned bubbles
+ */
+function spawnMultipleBubbles(count, canvas, bubbles, type = 'normal', now, options = {}) {
+  const {
+    minRadius = 20,
+    maxRadius = 40,
+    minSpeed = 0.3,
+    maxSpeed = 0.8,
+    minSpacing = 10,
+    maxAttempts = 50
+  } = options;
+
+  const spawned = [];
+  
+  for (let i = 0; i < count; i++) {
+    let attempts = 0;
+    let validPosition = false;
+    let x, y, radius;
+    
+    // Try to find a valid position
+    while (!validPosition && attempts < maxAttempts) {
+      radius = Math.random() * (maxRadius - minRadius) + minRadius;
+      x = Math.random() * (canvas.width - radius * 2) + radius;
+      y = Math.random() * (canvas.height - radius * 2) + radius;
+      
+      // Check if position is valid (no overlap with existing bubbles)
+      validPosition = isPositionValid(x, y, radius, bubbles, minSpacing);
+      attempts++;
+    }
+    
+    // If we couldn't find a valid position, skip this bubble
+    if (!validPosition) {
+      console.warn(`[spawnMultipleBubbles] Could not find valid position for bubble ${i + 1}/${count}`);
+      continue;
+    }
+    
+    // Generate random direction and speed
+    const angle = Math.random() * Math.PI * 2;
+    const speed = minSpeed + Math.random() * (maxSpeed - minSpeed);
+    const speedX = Math.cos(angle) * speed;
+    const speedY = Math.sin(angle) * speed;
+    
+    const color = getRandomColor();
+    const newBubble = new Bubble(x, y, radius, color, speedX, speedY, type, now);
+    
+    bubbles.push(newBubble);
+    spawned.push(newBubble);
+  }
+  
+  console.log(`[spawnMultipleBubbles] Successfully spawned ${spawned.length}/${count} bubbles`);
+  return spawned;
+}
+
+/**
+ * Check if a position is valid for spawning a bubble
+ * Ensures no overlap with existing bubbles and stays within canvas bounds
+ * 
+ * @param {number} x - X coordinate
+ * @param {number} y - Y coordinate
+ * @param {number} radius - Bubble radius
+ * @param {Array<Bubble>} bubbles - Existing bubbles
+ * @param {number} spacing - Minimum spacing between bubbles (default: 10)
+ * @returns {boolean} True if position is valid
+ */
+function isPositionValid(x, y, radius, bubbles, spacing = 10) {
+  // Check canvas boundaries
+  if (x - radius < spacing) return false;
+  if (y - radius < spacing) return false;
+  // Note: We can't check canvas.width/height here without passing canvas
+  // The caller should ensure x, y are within bounds
+  
+  // Check overlap with existing bubbles
+  for (const bubble of bubbles) {
+    if (bubble.popped || bubble.dead) continue;
+    
+    const dx = x - bubble.x;
+    const dy = y - bubble.y;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    const minDistance = radius + bubble.radius + spacing;
+    
+    if (distance < minDistance) return false;
+  }
+  
+  return true;
+}
+
+/**
+ * Get count of active (not popped, not dead) bubbles
+ * 
+ * @param {Array<Bubble>} bubbles - Bubbles array
+ * @returns {number} Count of active bubbles
+ */
+function getActiveBubbleCount(bubbles) {
+  return bubbles.filter(b => !b.popped && !b.dead).length;
+}
+
+/**
+ * Get count of bubbles by type
+ * 
+ * @param {Array<Bubble>} bubbles - Bubbles array
+ * @param {string} type - Bubble type ('normal', 'double', 'freeze', 'decoy', 'bomb')
+ * @param {boolean} activeOnly - Only count active bubbles (default: true)
+ * @returns {number} Count of matching bubbles
+ */
+function getBubbleCountByType(bubbles, type, activeOnly = true) {
+  return bubbles.filter(b => {
+    if (activeOnly && (b.popped || b.dead)) return false;
+    return b.type === type;
+  }).length;
+}
+
+/**
+ * Clear all bubbles of a specific type
+ * Useful for power-ups or special events
+ * 
+ * @param {Array<Bubble>} bubbles - Bubbles array (modified in place)
+ * @param {string} type - Bubble type to clear (or 'all' for all bubbles)
+ * @returns {number} Number of bubbles cleared
+ */
+function clearBubblesByType(bubbles, type = 'all') {
+  if (type === 'all') {
+    const count = bubbles.length;
+    bubbles.length = 0; // Clear array
+    return count;
+  }
+  
+  const initialLength = bubbles.length;
+  for (let i = bubbles.length - 1; i >= 0; i--) {
+    if (bubbles[i].type === type) {
+      bubbles.splice(i, 1);
+    }
+  }
+  return initialLength - bubbles.length;
+}
+
+/**
+ * Get all bubbles within a radius of a point
+ * Useful for area-of-effect mechanics
+ * 
+ * @param {Array<Bubble>} bubbles - Bubbles array
+ * @param {number} x - Center X coordinate
+ * @param {number} y - Center Y coordinate
+ * @param {number} radius - Search radius
+ * @param {boolean} activeOnly - Only include active bubbles (default: true)
+ * @returns {Array<Bubble>} Bubbles within radius
+ */
+function getBubblesInRadius(bubbles, x, y, radius, activeOnly = true) {
+  return bubbles.filter(b => {
+    if (activeOnly && (b.popped || b.dead)) return false;
+    
+    const dx = b.x - x;
+    const dy = b.y - y;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    
+    return distance <= radius;
+  });
+}
+
+/**
+ * Set velocity for all bubbles (or specific types)
+ * Useful for freeze effects or speed changes
+ * 
+ * @param {Array<Bubble>} bubbles - Bubbles array
+ * @param {number} speedX - New X velocity
+ * @param {number} speedY - New Y velocity
+ * @param {string} type - Bubble type filter (null for all types)
+ */
+function setBubbleVelocity(bubbles, speedX, speedY, type = null) {
+  bubbles.forEach(b => {
+    if (b.popped || b.dead) return;
+    if (type && b.type !== type) return;
+    
+    b.speedX = speedX;
+    b.speedY = speedY;
+  });
+}
+
+/**
+ * Scale bubble velocities by a multiplier
+ * Useful for slow-motion or speed-up effects
+ * 
+ * @param {Array<Bubble>} bubbles - Bubbles array
+ * @param {number} multiplier - Speed multiplier
+ * @param {string} type - Bubble type filter (null for all types)
+ */
+function scaleBubbleVelocity(bubbles, multiplier, type = null) {
+  bubbles.forEach(b => {
+    if (b.popped || b.dead) return;
+    if (type && b.type !== type) return;
+    
+    b.speedX *= multiplier;
+    b.speedY *= multiplier;
+  });
+}
+
+/**
+ * Get statistics about current bubbles
+ * Useful for debugging and game balance
+ * 
+ * @param {Array<Bubble>} bubbles - Bubbles array
+ * @returns {Object} Statistics object
+ */
+function getBubbleStats(bubbles) {
+  const stats = {
+    total: bubbles.length,
+    active: 0,
+    popped: 0,
+    dead: 0,
+    byType: {
+      normal: 0,
+      double: 0,
+      freeze: 0,
+      decoy: 0,
+      bomb: 0
+    },
+    avgSpeed: 0,
+    avgRadius: 0
+  };
+  
+  let totalSpeed = 0;
+  let totalRadius = 0;
+  
+  bubbles.forEach(b => {
+    if (b.popped) stats.popped++;
+    if (b.dead) stats.dead++;
+    if (!b.popped && !b.dead) stats.active++;
+    
+    stats.byType[b.type] = (stats.byType[b.type] || 0) + 1;
+    
+    const speed = Math.sqrt(b.speedX ** 2 + b.speedY ** 2);
+    totalSpeed += speed;
+    totalRadius += b.radius;
+  });
+  
+  if (bubbles.length > 0) {
+    stats.avgSpeed = totalSpeed / bubbles.length;
+    stats.avgRadius = totalRadius / bubbles.length;
+  }
+  
+  return stats;
+}
+
+/**
+ * Reset the spawn timer
+ * Useful when changing game modes or after special events
+ */
+function resetSpawnTimer() {
+  lastSpawnTime = 0;
+}
+
+export { 
+  Bubble, 
+  spawnBubble, 
+  handleBubbleCollision,
+  
+  // Utility functions
+  spawnMultipleBubbles,
+  isPositionValid,
+  getActiveBubbleCount,
+  getBubbleCountByType,
+  clearBubblesByType,
+  getBubblesInRadius,
+  setBubbleVelocity,
+  scaleBubbleVelocity,
+  getBubbleStats,
+  resetSpawnTimer
+};

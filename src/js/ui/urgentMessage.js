@@ -6,7 +6,7 @@ const DISABLE_URGENT_MESSAGE = false;
 // Keep a single live element + timer so messages don't pile up.
 let _urgentEl = null;
 let _hideTimer = null;
-let _removeTimer = null; // ADDED: New timer for the final DOM removal
+let _removeTimer = null;
 
 // WCAG 2.1 Success Criterion 1.4.3: Contrast (Minimum)
 // Requires a contrast ratio of at least 4.5:1 for normal text.
@@ -37,8 +37,6 @@ function isValidColor(colorStr) {
     tempEl.style.color = 'rgba(0,0,0,0)'; // Set an initial non-empty value
     tempEl.style.color = colorStr;
     // Valid colors will be computed to a non-empty string
-    // A more robust check might compare against a known invalid state.
-    // However, the computed style check is generally reliable.
     return tempEl.style.color !== '';
   } catch (e) {
     console.warn('Error validating color:', colorStr, e);
@@ -145,10 +143,7 @@ export function showUrgentMessage(message, duration = 1500, color = '#fff') {
     container.appendChild(_urgentEl);
   }
 
-  // --- MEMORY LEAK FIX START ---
-  //
-  // A new message should clear any existing timers to prevent a memory leak.
-  // The nested `setTimeout` for removal must also be cleared.
+  // Clear any existing timers to prevent memory leaks
   if (_hideTimer) {
     clearTimeout(_hideTimer);
     _hideTimer = null;
@@ -157,21 +152,14 @@ export function showUrgentMessage(message, duration = 1500, color = '#fff') {
     clearTimeout(_removeTimer);
     _removeTimer = null;
   }
-  // --- MEMORY LEAK FIX END ---
   
-  // --- INVALID COLOR FIX START ---
-  // Validate the provided color and use a fallback if it's invalid.
-  // This handles null, undefined, empty strings, and malformed values.
+  // Validate the provided color and use a fallback if it's invalid
   const validColor = isValidColor(color) ? color : '#fff';
   if (color !== validColor) {
     console.warn(`Invalid color '${color}' provided. Using fallback color '${validColor}'.`);
   }
-  // --- INVALID COLOR FIX END ---
 
-  // --- ACCESSIBILITY FIX: PROPER CONTRAST CHECK ---
-  // We calculate the contrast ratio against a dark and light background
-  // and choose the one that provides the best contrast while meeting
-  // the WCAG 4.5:1 minimum.
+  // Calculate contrast ratio and choose appropriate background
   const textRgb = getRgbFromColorString(validColor);
   const darkBgRgb = [0, 0, 0]; // Black background
   const lightBgRgb = [255, 255, 255]; // White background
@@ -191,7 +179,6 @@ export function showUrgentMessage(message, duration = 1500, color = '#fff') {
     _urgentEl.style.background = 'rgba(0, 0, 0, 0.70)';
     _urgentEl.style.color = '#fff';
   }
-  // --- END ACCESSIBILITY FIX ---
 
   _urgentEl.textContent = message;
 
@@ -223,53 +210,345 @@ export function showUrgentMessage(message, duration = 1500, color = '#fff') {
       }
       _urgentEl = null;
       _hideTimer = null;
-      _removeTimer = null; // ADDED: Clear this timer's reference
+      _removeTimer = null;
     }, 200);
   }, Math.max(0, duration));
 }
 
-// Add these exports at the end of urgentMessage.js
+// ============================================================================
+// DIFFICULTY & INTENSITY MESSAGES
+// ============================================================================
 
+/**
+ * Show "LEVEL X: EASE UP!" message
+ * Displayed when difficulty increases but player is struggling (high miss rate)
+ * @param {number} level - Current difficulty level
+ * @param {number} duration - Display duration in milliseconds (default: 2000ms)
+ */
 export function showDifficultyEaseUp(level, duration = 2000) {
-  showUrgentMessage(`LEVEL ${level}: EASE UP!`, duration, 'cyan');
+  showUrgentMessage(`LEVEL ${level}: EASE UP!`, duration, '#00CED1'); // Dark turquoise
 }
 
+/**
+ * Show "LEVEL X: FASTER BUBBLES!" message
+ * Displayed when bubble speed increases
+ * @param {number} level - Current difficulty level
+ * @param {number} duration - Display duration in milliseconds (default: 2000ms)
+ */
 export function showFasterBubbles(level, duration = 2000) {
-  showUrgentMessage(`LEVEL ${level}: FASTER BUBBLES!`, duration, 'lime');
+  showUrgentMessage(`LEVEL ${level}: FASTER BUBBLES!`, duration, '#32CD32'); // Lime green
 }
 
+/**
+ * Show "LEVEL X: MORE BUBBLES!" message
+ * Displayed when spawn rate increases
+ * @param {number} level - Current difficulty level
+ * @param {number} duration - Display duration in milliseconds (default: 2000ms)
+ */
 export function showMoreBubbles(level, duration = 2000) {
-  showUrgentMessage(`LEVEL ${level}: MORE BUBBLES!`, duration, 'cyan');
+  showUrgentMessage(`LEVEL ${level}: MORE BUBBLES!`, duration, '#00CED1'); // Dark turquoise
 }
 
-// Updated with WCAG-compliant colors
+/**
+ * Show "⚡ WARNING: MAXIMUM INTENSITY! ⚡" message
+ * Displayed when difficulty reaches critical levels
+ * @param {number} duration - Display duration in milliseconds (default: 2500ms)
+ */
 export function showMaximumIntensity(duration = 2500) {
-  showUrgentMessage("⚡ WARNING: MAXIMUM INTENSITY! ⚡", duration, '#ff8c00'); // Darker orange
+  showUrgentMessage("⚡ WARNING: MAXIMUM INTENSITY! ⚡", duration, '#ff8c00'); // Dark orange
 }
 
+// ============================================================================
+// FREEZE BUBBLE MESSAGES (Survival Mode)
+// ============================================================================
+
+/**
+ * Show "FREEZE ENDED" message
+ * Displayed when freeze time expires in survival mode
+ * @param {number} duration - Display duration in milliseconds (default: 2000ms)
+ */
 export function showFreezeEnded(duration = 2000) {
-  showUrgentMessage("FREEZE ENDED", duration);
+  showUrgentMessage("FREEZE ENDED", duration, '#fff');
 }
 
+/**
+ * Show "FREEZE POWER-UP READY!" message
+ * Displayed when player earns a freeze bubble in survival mode
+ * @param {number} duration - Display duration in milliseconds (default: 2000ms)
+ */
 export function showFreezeReady(duration = 2000) {
-  showUrgentMessage("FREEZE POWER-UP READY!", duration);
+  showUrgentMessage("FREEZE POWER-UP READY!", duration, '#1E90FF'); // Dodger blue
 }
 
-// Updated with WCAG-compliant colors
+/**
+ * Show "TIME FREEZE!" message
+ * Displayed when freeze bubble is activated in survival mode
+ * @param {number} duration - Display duration in milliseconds (default: 2000ms)
+ */
 export function showTimeFreeze(duration = 2000) {
-  showUrgentMessage("TIME FREEZE!", duration, '#1e90ff'); // Brighter blue
+  showUrgentMessage("TIME FREEZE!", duration, '#1E90FF'); // Dodger blue
 }
 
-// Updated with WCAG-compliant colors
+// ============================================================================
+// FRENZY MODE MESSAGES (Classic Mode) - NEW
+// ============================================================================
+
+/**
+ * Show "Go Frenzy!" message
+ * Displayed when frenzy mode is activated in classic mode
+ * Brief display (0.5s) before countdown starts
+ * @param {number} duration - Display duration in milliseconds (default: 500ms)
+ */
+export function showGoFrenzy(duration = 500) {
+  showUrgentMessage("Go Frenzy!", duration, '#FFD700'); // Gold
+}
+
+/**
+ * Show "Frenzy Time Up!" message
+ * Displayed when frenzy mode countdown reaches zero
+ * @param {number} duration - Display duration in milliseconds (default: 1500ms)
+ */
+export function showFrenzyTimeUp(duration = 1500) {
+  showUrgentMessage("Frenzy Time Up!", duration, '#FF6347'); // Tomato red
+}
+
+/**
+ * Show "Get Ready!" message (optional enhancement)
+ * Can be displayed before frenzy activation to build anticipation
+ * @param {number} duration - Display duration in milliseconds (default: 1000ms)
+ */
+export function showFrenzyGetReady(duration = 1000) {
+  showUrgentMessage("Get Ready!", duration, '#FFA500'); // Orange
+}
+
+/**
+ * Show frenzy countdown number (alternative to visual effect)
+ * Can be used as fallback if FrenzyCountdownEffect has issues
+ * @param {number} seconds - Number to display (3, 2, 1)
+ * @param {number} duration - Display duration in milliseconds (default: 1000ms)
+ */
+export function showFrenzyCountdown(seconds, duration = 1000) {
+  const colors = {
+    3: '#FFD700', // Gold
+    2: '#FFA500', // Orange
+    1: '#FF4500'  // Red-orange
+  };
+  showUrgentMessage(String(seconds), duration, colors[seconds] || '#FFD700');
+}
+
+// ============================================================================
+// BOMB & SPECIAL BUBBLE MESSAGES
+// ============================================================================
+
+/**
+ * Show "BOOM!" message
+ * Displayed when bomb bubble explodes
+ * @param {number} duration - Display duration in milliseconds (default: 1500ms)
+ */
 export function showBoom(duration = 1500) {
-  showUrgentMessage("BOOM!", duration, '#ff4500'); // Brighter red-orange
+  showUrgentMessage("BOOM!", duration, '#FF4500'); // Red-orange
 }
 
-// Updated with WCAG-compliant colors
+/**
+ * Show "OUCH! -50" message
+ * Displayed when player pops a decoy bubble
+ * @param {number} duration - Display duration in milliseconds (default: 1500ms)
+ */
 export function showOuchPenalty(duration = 1500) {
-  showUrgentMessage("OUCH! -50", duration, '#ff6b6b'); // Brighter red
+  showUrgentMessage("OUCH! -50", duration, '#ff6b6b'); // Light red
 }
 
+/**
+ * Show "DOUBLE POP! +10" message
+ * Displayed when player completes a double-tap bubble
+ * @param {number} duration - Display duration in milliseconds (default: 1000ms)
+ */
 export function showDoublePop(duration = 1000) {
-  showUrgentMessage("DOUBLE POP! +10", duration);
+  showUrgentMessage("DOUBLE POP! +10", duration, '#fff');
 }
+
+// ============================================================================
+// COMBO & STREAK MESSAGES
+// ============================================================================
+
+/**
+ * Show combo message with count
+ * Displayed when player achieves pop combos
+ * @param {number} count - Number of consecutive pops
+ * @param {number} duration - Display duration in milliseconds (default: 1000ms)
+ */
+export function showCombo(count, duration = 1000) {
+  let message = `${count}x COMBO!`;
+  let color = '#FFD700'; // Gold
+  
+  // Special messages for milestone combos
+  if (count >= 50) {
+    message = `🔥 ${count}x LEGENDARY! 🔥`;
+    color = '#FF1493'; // Deep pink
+  } else if (count >= 30) {
+    message = `⚡ ${count}x AMAZING! ⚡`;
+    color = '#FF4500'; // Red-orange
+  } else if (count >= 20) {
+    message = `✨ ${count}x SUPER! ✨`;
+    color = '#FFA500'; // Orange
+  } else if (count >= 10) {
+    message = `🌟 ${count}x GREAT! 🌟`;
+    color = '#FFD700'; // Gold
+  }
+  
+  showUrgentMessage(message, duration, color);
+}
+
+/**
+ * Show "COMBO BROKEN!" message
+ * Displayed when player's combo streak is interrupted
+ * @param {number} duration - Display duration in milliseconds (default: 1000ms)
+ */
+export function showComboBroken(duration = 1000) {
+  showUrgentMessage("COMBO BROKEN!", duration, '#ff6b6b'); // Light red
+}
+
+// ============================================================================
+// ACHIEVEMENT & MILESTONE MESSAGES
+// ============================================================================
+
+/**
+ * Show custom achievement message
+ * Generic function for displaying achievement notifications
+ * @param {string} title - Achievement title
+ * @param {string} color - Text color (default: gold)
+ * @param {number} duration - Display duration in milliseconds (default: 2500ms)
+ */
+export function showAchievement(title, color = '#FFD700', duration = 2500) {
+  showUrgentMessage(`🏆 ${title} 🏆`, duration, color);
+}
+
+/**
+ * Show score milestone message
+ * Displayed when player reaches significant score thresholds
+ * @param {number} score - Score milestone reached
+ * @param {number} duration - Display duration in milliseconds (default: 2000ms)
+ */
+export function showScoreMilestone(score, duration = 2000) {
+  showUrgentMessage(`${score} POINTS!`, duration, '#FFD700');
+}
+
+// ============================================================================
+// GAME STATE MESSAGES
+// ============================================================================
+
+/**
+ * Show "PAUSED" message
+ * Alternative to overlay, can be used for brief pause notifications
+ * @param {number} duration - Display duration in milliseconds (default: 1000ms)
+ */
+export function showPaused(duration = 1000) {
+  showUrgentMessage("PAUSED", duration, '#fff');
+}
+
+/**
+ * Show "RESUMED" message
+ * Displayed when game is unpaused
+ * @param {number} duration - Display duration in milliseconds (default: 800ms)
+ */
+export function showResumed(duration = 800) {
+  showUrgentMessage("RESUMED", duration, '#32CD32'); // Lime green
+}
+
+/**
+ * Show warning message
+ * Generic function for displaying warnings
+ * @param {string} message - Warning text
+ * @param {number} duration - Display duration in milliseconds (default: 2000ms)
+ */
+export function showWarning(message, duration = 2000) {
+  showUrgentMessage(`⚠️ ${message} ⚠️`, duration, '#FFA500'); // Orange
+}
+
+// ============================================================================
+// UTILITY FUNCTIONS
+// ============================================================================
+
+/**
+ * Clear the current urgent message immediately
+ * Useful for forcing message changes or clearing stale messages
+ */
+export function clearUrgentMessage() {
+  if (_hideTimer) {
+    clearTimeout(_hideTimer);
+    _hideTimer = null;
+  }
+  if (_removeTimer) {
+    clearTimeout(_removeTimer);
+    _removeTimer = null;
+  }
+  if (_urgentEl && _urgentEl.parentNode) {
+    _urgentEl.parentNode.removeChild(_urgentEl);
+  }
+  _urgentEl = null;
+}
+
+/**
+ * Check if an urgent message is currently displayed
+ * @returns {boolean} True if message is visible
+ */
+export function isUrgentMessageVisible() {
+  return _urgentEl !== null && _urgentEl.parentNode !== null;
+}
+
+/**
+ * Get the current message text (if any)
+ * @returns {string|null} Current message text or null
+ */
+export function getCurrentUrgentMessage() {
+  return _urgentEl ? _urgentEl.textContent : null;
+}
+
+// ============================================================================
+// EXPORT SUMMARY
+// ============================================================================
+
+/**
+ * Complete list of exported functions:
+ * 
+ * Core:
+ * - showUrgentMessage(message, duration, color)
+ * - clearUrgentMessage()
+ * - isUrgentMessageVisible()
+ * - getCurrentUrgentMessage()
+ * 
+ * Difficulty:
+ * - showDifficultyEaseUp(level, duration)
+ * - showFasterBubbles(level, duration)
+ * - showMoreBubbles(level, duration)
+ * - showMaximumIntensity(duration)
+ * 
+ * Freeze (Survival):
+ * - showFreezeEnded(duration)
+ * - showFreezeReady(duration)
+ * - showTimeFreeze(duration)
+ * 
+ * Frenzy (Classic) - NEW:
+ * - showGoFrenzy(duration)
+ * - showFrenzyTimeUp(duration)
+ * - showFrenzyGetReady(duration)
+ * - showFrenzyCountdown(seconds, duration)
+ * 
+ * Special Bubbles:
+ * - showBoom(duration)
+ * - showOuchPenalty(duration)
+ * - showDoublePop(duration)
+ * 
+ * Combos:
+ * - showCombo(count, duration)
+ * - showComboBroken(duration)
+ * 
+ * Achievements:
+ * - showAchievement(title, color, duration)
+ * - showScoreMilestone(score, duration)
+ * 
+ * Game State:
+ * - showPaused(duration)
+ * - showResumed(duration)
+ * - showWarning(message, duration)
+ */

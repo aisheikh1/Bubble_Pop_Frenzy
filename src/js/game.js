@@ -25,6 +25,9 @@ import { CountdownTextEffect } from './effects/CountdownTextEffect.js';
 // SCORING: point to your actual folder
 import { scoringService } from './ScoringEngine/index.js';
 
+// FRENZY MODE: Import the modular frenzy system
+import { FrenzyMode, FrenzyState } from './modes/index.js';
+
 /* ---------------------------
    Compatibility shim
    ---------------------------
@@ -88,6 +91,12 @@ let lastFrameTime = 0;
 let pauseOverlay = null;
 
 // ---------------------------
+// FRENZY MODE INSTANCE
+// ---------------------------
+let frenzyMode = null;
+let classicTimerBeforeFrenzy = 0; // Store timer value when frenzy starts
+
+// ---------------------------
 // Game Constants
 // ---------------------------
 const GAME_CONSTANTS = {
@@ -103,7 +112,13 @@ const GAME_CONSTANTS = {
   COMBO_NEEDED: 10,
   BOMB_SPAWN_INTERVAL: 20000,
   MIN_BUBBLES: 5,
-  MAX_BUBBLES: 10
+  MAX_BUBBLES: 10,
+  
+  // Frenzy mode constants
+  FRENZY_ACTIVATION_DURATION: 0.5,  // "Go Frenzy!" display time
+  FRENZY_COUNTDOWN_DURATION: 3.0,   // Countdown gameplay time
+  FRENZY_TOTAL_DURATION: 3.5,       // Total frenzy time
+  FRENZY_BUBBLE_FILL_COUNT: 25      // Bubbles to spawn during frenzy
 };
 
 // ---------------------------
@@ -143,10 +158,25 @@ function togglePause() {
   if (!gameActive || !gamePrepared) return;
   gamePaused = !gamePaused;
   if (gameConfig && gameConfig.pauseButton) gameConfig.pauseButton.toggle();
-  if (gamePaused) showPauseOverlay();
-  else {
+  
+  if (gamePaused) {
+    showPauseOverlay();
+    
+    // Pause frenzy mode if active
+    if (frenzyMode && frenzyMode.isActive()) {
+      frenzyMode.pause({
+        classicTimeLeft,
+        survivalTimeLeft
+      });
+    }
+  } else {
     hidePauseOverlay();
     lastFrameTime = performance.now();
+    
+    // Resume frenzy mode if it was paused
+    if (frenzyMode && frenzyMode.isActive()) {
+      frenzyMode.resume(performance.now());
+    }
   }
 }
 
@@ -159,6 +189,11 @@ function restartGame() {
   if (gameConfig && gameConfig.pauseButton) gameConfig.pauseButton.reset();
 
   bubbles = [];
+  
+  // Reset frenzy mode
+  if (frenzyMode) {
+    frenzyMode.reset();
+  }
 
   if (gameConfig && gameMode) {
     prepareGame(gameConfig, gameMode);
@@ -172,6 +207,11 @@ function goToMainMenu() {
   if (animFrameId) cancelAnimationFrame(animFrameId);
   hidePauseOverlay();
   if (gameConfig && gameConfig.pauseButton) gameConfig.pauseButton.reset();
+
+  // Reset frenzy mode
+  if (frenzyMode) {
+    frenzyMode.reset();
+  }
 
   if (gameConfig && gameConfig.canvasManager) gameConfig.canvasManager.hide();
   setBackButtonVisible(false);
@@ -280,6 +320,7 @@ async function prepareGame(config, mode) {
   totalBubblesSpawned = 0;
   playerMissRate = 0;
   gamePaused = false;
+  classicTimerBeforeFrenzy = 0;
 
   // Reset scoring
   if (scoringService && typeof scoringService.reset === 'function') {
@@ -288,6 +329,55 @@ async function prepareGame(config, mode) {
 
   if (gameConfig && gameConfig.pauseButton) gameConfig.pauseButton.reset();
   hidePauseOverlay();
+
+  // ---------------------------
+  // FRENZY MODE INITIALIZATION
+  // ---------------------------
+  // Create frenzy mode instance with proper configuration
+  frenzyMode = new FrenzyMode({
+    canvas: gameCanvas,
+    getBubbles: () => bubbles,
+    setBubbles: (newBubbles) => { bubbles = newBubbles; },
+    gameMode: gameMode,
+    constants: {
+      ACTIVATION_DURATION: GAME_CONSTANTS.FRENZY_ACTIVATION_DURATION,
+      COUNTDOWN_DURATION: GAME_CONSTANTS.FRENZY_COUNTDOWN_DURATION,
+      TOTAL_DURATION: GAME_CONSTANTS.FRENZY_TOTAL_DURATION,
+      BUBBLE_FILL_COUNT: GAME_CONSTANTS.FRENZY_BUBBLE_FILL_COUNT
+    },
+    
+    // Callback when frenzy starts
+    onStart: () => {
+      console.log('[Game] Frenzy mode started - pausing game timer');
+      
+      // Store the current timer value
+      if (gameMode === 'classic') {
+        classicTimerBeforeFrenzy = classicTimeLeft;
+      }
+    },
+    
+    // Callback on each countdown tick
+    onTick: (secondsRemaining) => {
+      console.log(`[Game] Frenzy countdown: ${secondsRemaining}s remaining`);
+    },
+    
+    // Callback when frenzy ends
+    onEnd: () => {
+      console.log('[Game] Frenzy mode ended - resuming game timer');
+      
+      // Restore the timer value (classic timer was paused)
+      if (gameMode === 'classic') {
+        classicTimeLeft = classicTimerBeforeFrenzy;
+      }
+      
+      // Clear all bubbles
+      bubbles = [];
+      
+      // Reset consecutive pop counters
+      consecutivePops = 0;
+      consecutiveNormalPops = 0;
+    }
+  });
 
   if (gameMode === 'classic') {
     classicTimeLeft = 60;
@@ -348,13 +438,70 @@ function gameLoop(now) {
 
   if (!gameActive) return;
 
+  // ---------------------------
+  // FRENZY MODE UPDATE
+  // ---------------------------
+  // If frenzy is active, update it and handle frenzy-specific logic
+  if (frenzyMode && frenzyMode.isActive()) {
+    frenzyMode.update(deltaTime, now);
+    
+    // During frenzy, the classic timer should NOT decrease
+    // Only update bubbles and effects during frenzy
+    
+    // Update bubbles
+    for (let i = bubbles.length - 1; i >= 0; i--) {
+      const bubble = bubbles[i];
+      
+      // Bubbles move normally during frenzy (no freeze)
+      bubble.update(
+        deltaTime,
+        now,
+        gameMode,
+        false, // isFreezeModeActive = false during frenzy
+        showUrgentMessage,
+        endGame,
+        gameCanvas
+      );
+
+      if (bubble.dead) {
+        bubbles.splice(i, 1);
+      }
+    }
+    
+    // Handle bubble collisions during frenzy
+    for (let i = 0; i < bubbles.length; i++) {
+      if (bubbles[i].popped) continue;
+      for (let j = i + 1; j < bubbles.length; j++) {
+        if (bubbles[j].popped) continue;
+        handleBubbleCollision(bubbles[i], bubbles[j]);
+      }
+    }
+    
+    // Render everything
+    gameConfig.canvasManager.clear();
+    for (let i = 0; i < bubbles.length; i++) {
+      bubbles[i].draw(gameCtx, now);
+    }
+    effects.update(deltaTime, now);
+    effects.draw(gameCtx);
+    updateUI();
+    
+    return; // Skip normal game loop logic during frenzy
+  }
+
+  // ---------------------------
+  // NORMAL GAME LOOP (when not in frenzy)
+  // ---------------------------
+  
   if (gameMode === 'classic') {
+    // In classic mode, timer decreases normally (unless frenzy is active)
     classicTimeLeft -= deltaTime;
     if (classicTimeLeft <= 0) {
       classicTimeLeft = 0;
       endGame();
     }
   } else {
+    // Survival mode logic
     if (isFreezeModeActive) {
       freezeModeTimeLeft -= deltaTime;
       if (freezeModeTimeLeft <= 0) {
@@ -468,12 +615,55 @@ function handleCanvasPointerDown(x, y) {
     const distance = Math.sqrt(dx * dx + dy * dy);
 
     if (distance <= bubble.radius) {
+      // ---------------------------
+      // FRENZY MODE ACTIVATION
+      // ---------------------------
+      if (bubble.type === 'freeze') {
+        // In CLASSIC mode: Activate frenzy mode
+        if (gameMode === 'classic' && frenzyMode && frenzyMode.canActivate()) {
+          frenzyMode.activate(performance.now());
+          effects.spawn(new GiftUnwrapEffect(bubble.x, bubble.y, bubble.radius, bubble.color));
+          
+          const res = scoringService.handleBubblePop('freeze');
+          spawnPointsText(res.pointsEarned, bubble.x, bubble.y, '#88ccff');
+          
+          bubble.popped = true;
+          poppedAny = true;
+          consecutivePops = 0;
+          consecutiveNormalPops = 0;
+          break;
+        }
+        // In SURVIVAL mode: Use old freeze behavior
+        else if (gameMode === 'survival') {
+          if (!isFreezeModeActive) {
+            isFreezeModeActive = true;
+            freezeModeTimeLeft = GAME_CONSTANTS.FREEZE_DURATION;
+            effects.spawn(new ScreenFlashEffect('blue'));
+            showTimeFreeze();
+            effects.spawn(new GiftUnwrapEffect(bubble.x, bubble.y, bubble.radius, bubble.color));
+          }
+          const res = scoringService.handleBubblePop('freeze');
+          spawnPointsText(res.pointsEarned, bubble.x, bubble.y, '#88ccff');
+
+          bubble.popped = true;
+          poppedAny = true;
+          consecutivePops = 0;
+          consecutiveNormalPops = 0;
+          break;
+        }
+      }
+      
+      // Handle decoy bubbles
       if (bubble.type === 'decoy') {
         const res = scoringService.handleBubblePop('decoy');
-        survivalTimeLeft -= GAME_CONSTANTS.TIME_PENALTY_PER_DECOY;
+        
+        if (gameMode === 'survival') {
+          survivalTimeLeft -= GAME_CONSTANTS.TIME_PENALTY_PER_DECOY;
+          effects.spawn(new FloatingTextEffect(gameCanvas.width / 2, 50, '-5s', '#ff5555'));
+        }
+        
         effects.spawn(new ScreenFlashEffect('red'));
         showOuchPenalty();
-        effects.spawn(new FloatingTextEffect(gameCanvas.width / 2, 50, '-5s', '#ff5555'));
         spawnPointsText(res.pointsEarned, bubble.x, bubble.y, '#ff7777');
 
         bubble.popped = true;
@@ -481,23 +671,10 @@ function handleCanvasPointerDown(x, y) {
         consecutivePops = 0;
         consecutiveNormalPops = 0;
         break;
-      } else if (bubble.type === 'freeze') {
-        if (!isFreezeModeActive) {
-          isFreezeModeActive = true;
-          freezeModeTimeLeft = GAME_CONSTANTS.FREEZE_DURATION;
-          effects.spawn(new ScreenFlashEffect('blue'));
-          showTimeFreeze();
-          effects.spawn(new GiftUnwrapEffect(bubble.x, bubble.y, bubble.radius, bubble.color));
-        }
-        const res = scoringService.handleBubblePop('freeze');
-        spawnPointsText(res.pointsEarned, bubble.x, bubble.y, '#88ccff');
-
-        bubble.popped = true;
-        poppedAny = true;
-        consecutivePops = 0;
-        consecutiveNormalPops = 0;
-        break;
-      } else if (bubble.type === 'bomb') {
+      }
+      
+      // Handle bomb bubbles
+      if (bubble.type === 'bomb') {
         effects.spawn(new ExplosionEffect(bubble.x, bubble.y, 200, 'orange'));
         effects.spawn(new ScreenFlashEffect('orange'));
         showBoom();
@@ -513,6 +690,7 @@ function handleCanvasPointerDown(x, y) {
         break;
       }
 
+      // Handle normal and double bubbles
       if (bubble.pop(performance.now())) {
         const res = scoringService.handleBubblePop(bubble.type);
         spawnPointsText(res.pointsEarned, bubble.x, bubble.y, bubble.color || '#ffffff');
@@ -537,6 +715,8 @@ function handleCanvasPointerDown(x, y) {
         }
 
         consecutivePops += 1;
+        
+        // Spawn freeze bubble in survival mode after combo
         if (
           gameMode === 'survival' &&
           (consecutivePops % GAME_CONSTANTS.COMBO_NEEDED === 0) &&
@@ -590,6 +770,11 @@ function endGame() {
   setRestartButtonVisible(false);
   hidePauseOverlay();
   if (gameConfig && gameConfig.pauseButton) gameConfig.pauseButton.reset();
+  
+  // Reset frenzy mode
+  if (frenzyMode) {
+    frenzyMode.reset();
+  }
 
   const stats = scoringService.getCurrentStats();
   const totalScore = (stats && typeof stats.totalScore === 'number') ? stats.totalScore : 0;

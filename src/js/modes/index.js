@@ -22,21 +22,9 @@
  * import { FrenzyState } from './modes/FrenzyMode.js';
  */
 
-// ============================================================================
-// FRENZY MODE - Freeze bubble power-up system
-// ============================================================================
-
-/**
- * FrenzyMode - Manages freeze bubble activation and frenzy gameplay
- * Complete lifecycle management for timed power-up mode
- */
-export { FrenzyMode } from './FrenzyMode.js';
-
-/**
- * FrenzyState - Enum for frenzy mode states
- * Values: IDLE, ACTIVATING, ACTIVE, ENDING
- */
-export { FrenzyState } from './FrenzyMode.js';
+// Bring FrenzyMode/FrenzyState into local scope AND re-export them
+import { FrenzyMode, FrenzyState } from './FrenzyMode.js';
+export { FrenzyMode, FrenzyState };
 
 // ============================================================================
 // FUTURE MODES - Placeholder for extensibility
@@ -150,12 +138,10 @@ export function getModesForGameMode(gameMode) {
 export function createMode(modeName, config) {
   switch (modeName) {
     case 'frenzy':
-      const { FrenzyMode } = await import('./FrenzyMode.js');
       return new FrenzyMode(config);
     
     // Future modes can be added here
     // case 'chainReaction':
-    //   const { ChainReactionMode } = await import('./ChainReactionMode.js');
     //   return new ChainReactionMode(config);
     
     default:
@@ -214,9 +200,9 @@ export const VERSION = {
 // ============================================================================
 
 /**
- * Available exports from this module:
+ * In summary, this file provides:
  * 
- * Classes:
+ * Core exports:
  * - FrenzyMode: Main frenzy mode implementation
  * 
  * Enums:
