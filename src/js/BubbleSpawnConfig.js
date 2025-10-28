@@ -141,7 +141,7 @@ function selectWeightedRandomType(gameMode) {
   const weights = SPAWN_WEIGHTS[gameMode];
   
   if (!weights) {
-    console.warn(`[BubbleSpawnConfig] Unknown game mode: ${gameMode}, defaulting to normal`);
+    // Fallback: Unknown game mode
     return BUBBLE_TYPES.NORMAL;
   }
   
@@ -160,7 +160,6 @@ function selectWeightedRandomType(gameMode) {
   
   // Handle case where all weights are 0
   if (totalWeight === 0) {
-    console.warn('[BubbleSpawnConfig] All weights are 0, defaulting to normal bubble');
     return BUBBLE_TYPES.NORMAL;
   }
   
@@ -227,7 +226,6 @@ export function notifyBubbleMissed() {
  */
 export function resetSpawnState() {
   spawnState.reset();
-  console.log('[BubbleSpawnConfig] Spawn state reset');
 }
 
 /**
@@ -275,17 +273,14 @@ export function getAvailableBubbleTypes(gameMode) {
  */
 export function updateSpawnWeight(gameMode, bubbleType, newWeight) {
   if (!SPAWN_WEIGHTS[gameMode]) {
-    console.warn(`[BubbleSpawnConfig] Unknown game mode: ${gameMode}`);
     return false;
   }
   
   if (!BUBBLE_TYPES[bubbleType.toUpperCase()]) {
-    console.warn(`[BubbleSpawnConfig] Unknown bubble type: ${bubbleType}`);
     return false;
   }
   
   SPAWN_WEIGHTS[gameMode][bubbleType] = Math.max(0, newWeight);
-  console.log(`[BubbleSpawnConfig] Updated ${bubbleType} weight in ${gameMode}: ${newWeight}`);
   return true;
 }
 
@@ -313,31 +308,5 @@ export const BubbleSpawnConfig = {
   BUBBLE_TYPE_INFO,
   SPAWN_RATE_CONFIG
 };
-
-// ============================================================================
-// DEBUG HELPERS
-// ============================================================================
-
-if (typeof window !== 'undefined') {
-  window.bubbleSpawnDebug = {
-    getWeights: (mode) => getSpawnWeights(mode),
-    testSpawn: (mode, count = 100) => {
-      const results = {};
-      for (let i = 0; i < count; i++) {
-        const type = selectWeightedRandomType(mode);
-        results[type] = (results[type] || 0) + 1;
-      }
-      console.log(`[Test] ${count} spawns in ${mode} mode:`, results);
-      return results;
-    },
-    setWeight: (mode, type, weight) => updateSpawnWeight(mode, type, weight),
-    reset: () => resetSpawnState()
-  };
-  
-  console.log('[BubbleSpawnConfig] Debug helpers available:');
-  console.log('  window.bubbleSpawnDebug.testSpawn("classic", 100)');
-  console.log('  window.bubbleSpawnDebug.getWeights("survival")');
-  console.log('  window.bubbleSpawnDebug.setWeight("classic", "double", 50)');
-}
 
 export default BubbleSpawnConfig;

@@ -1,19 +1,8 @@
 // src/js/game.js
 
 import { Bubble, spawnBubble, handleBubbleCollision } from './bubbles.js';
-import {
-  showUrgentMessage,
-  showDifficultyEaseUp,
-  showFasterBubbles,
-  showMoreBubbles,
-  showMaximumIntensity,
-  // showFreezeEnded, // Removed Freeze UI
-  // showFreezeReady, // Removed Freeze UI
-  // showTimeFreeze, // Removed Freeze UI
-  // showBoom, // Removed Boom UI
-  showOuchPenalty,
-  showDoublePop
-} from './ui/urgentMessage.js';
+// REMOVED: import of urgentMessage.js functions
+
 import { showMessageBox, hideMessageBox } from './ui/messageBox.js';
 import { FloatingTextEffect } from './effects/FloatingTextEffect.js';
 import { effects } from './effects/EffectManager.js';
@@ -106,6 +95,9 @@ const getSpawnRateConfig = (mode) => {
   const config = BubbleSpawnConfig.SPAWN_RATE_CONFIG[mode];
   return config || BubbleSpawnConfig.SPAWN_RATE_CONFIG.classic;
 };
+
+// Define a no-op function to replace urgentMessage calls
+const noOp = () => {};
 
 // ---------------------------
 // Helpers
@@ -232,32 +224,32 @@ function handleDifficultyIncrease(now) {
     if (lastIncreaseType === 'spawn') {
       if (playerMissRate > GAME_CONSTANTS.MAX_ALLOWED_MISS_RATE) {
         speedIncreaseAmount = 0.3;
-        showDifficultyEaseUp(difficultyLevel);
+        // showDifficultyEaseUp(difficultyLevel); // Removed urgentMessage.js call
         showMsg = false;
       } else {
         speedIncreaseAmount = 0.5;
       }
       bubbleSpeedMultiplier = Math.min(bubbleSpeedMultiplier + speedIncreaseAmount, GAME_CONSTANTS.MAX_SPEED_MULTIPLIER);
-      if (showMsg) showFasterBubbles(difficultyLevel);
+      // if (showMsg) showFasterBubbles(difficultyLevel); // Removed urgentMessage.js call
       effects.spawn(new ScreenFlashEffect('lime', 0.4));
       lastIncreaseType = 'speed';
     } else {
       if (playerMissRate > GAME_CONSTANTS.MAX_ALLOWED_MISS_RATE) {
         bubbleSpawnInterval = Math.max(bubbleSpawnInterval * 0.85, GAME_CONSTANTS.MIN_SPAWN_INTERVAL);
-        showDifficultyEaseUp(difficultyLevel);
+        // showDifficultyEaseUp(difficultyLevel); // Removed urgentMessage.js call
         showMsg = false;
       } else {
         bubbleSpawnInterval = Math.max(bubbleSpawnInterval * 0.7, GAME_CONSTANTS.MIN_SPAWN_INTERVAL);
       }
       effects.spawn(new ScreenFlashEffect('cyan', 0.4));
-      if (showMsg) showMoreBubbles(difficultyLevel);
+      // if (showMsg) showMoreBubbles(difficultyLevel); // Removed urgentMessage.js call
       lastIncreaseType = 'spawn';
     }
 
     lastDifficultyIncreaseTime = now;
 
     if (difficultyLevel % 3 === 0) {
-      showMaximumIntensity();
+      // showMaximumIntensity(); // Removed urgentMessage.js call
       effects.spawn(new ScreenFlashEffect('orange', 0.6));
     }
   }
@@ -417,7 +409,7 @@ function gameLoop(now) {
       now,
       gameMode,
       false, // isFreezeModeActive is always false
-      showUrgentMessage,
+      noOp, // REPLACED: showUrgentMessage with noOp
       endGame,
       gameCanvas
     );
@@ -492,7 +484,7 @@ function handleCanvasPointerDown(x, y) {
         }
         
         effects.spawn(new ScreenFlashEffect('red'));
-        showOuchPenalty();
+        // showOuchPenalty(); // Removed urgentMessage.js call
         spawnPointsText(res.pointsEarned, bubble.x, bubble.y, '#ff7777');
 
         bubble.popped = true;
@@ -525,7 +517,7 @@ function handleCanvasPointerDown(x, y) {
             survivalTimeLeft += GAME_CONSTANTS.TIME_BONUS_PER_DOUBLE_TAP;
             effects.spawn(new FloatingTextEffect(gameCanvas.width / 2, 50, '+1s', bubble.initialColor || '#ffffff'));
             consecutiveNormalPops = 0;
-            showDoublePop();
+            // showDoublePop(); // Removed urgentMessage.js call
           } else {
             consecutiveNormalPops = 0;
           }
