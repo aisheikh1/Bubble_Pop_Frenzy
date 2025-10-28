@@ -72,7 +72,7 @@ class Bubble {
     ctx.restore(); // Restore the previous state, resetting shadow properties
   }
 
-  update(deltaTime, now, gameMode, isFreezeModeActive, showUrgentMessage, endGame, gameCanvas) {
+  update(deltaTime, now, gameMode, showUrgentMessage, endGame, gameCanvas) {
     // Check if the bubble is at the end of its life
     if (now - this.creationTime > this.maxLifetime) {
         if (!this.popped) {
@@ -86,8 +86,6 @@ class Bubble {
 
     if (this.popped) return false;
     
-    if (isFreezeModeActive) return false; // Bubbles don't move in freeze mode
-
     // Apply movement with deltaTime normalization
     this.x += this.speedX * deltaTime * 60;
     this.y += this.speedY * deltaTime * 60;
@@ -244,8 +242,7 @@ function handleBubbleCollision(bubble1, bubble2) {
 /**
  * Spawns a new bubble at a random location on the canvas with increased speed.
  * Now uses BubbleSpawnConfig for type determination.
- * 
- * @param {number} now - Current timestamp.
+ * * @param {number} now - Current timestamp.
  * @param {HTMLCanvasElement} canvas - The game canvas.
  * @param {Array<Bubble>} bubbles - The array to add the new bubble to.
  * @param {string} gameMode - The current game mode.
@@ -294,8 +291,7 @@ function spawnBubble(now, canvas, bubbles, gameMode, type = null, speedMultiplie
 /**
  * Spawn multiple bubbles instantly without timing constraints
  * Used by frenzy mode to fill the canvas quickly
- * 
- * @param {number} count - Number of bubbles to spawn
+ * * @param {number} count - Number of bubbles to spawn
  * @param {HTMLCanvasElement} canvas - The game canvas
  * @param {Array<Bubble>} bubbles - Existing bubbles array
  * @param {string} type - Bubble type to spawn (default: 'normal')
@@ -363,8 +359,7 @@ function spawnMultipleBubbles(count, canvas, bubbles, type = 'normal', now, opti
 /**
  * Check if a position is valid for spawning a bubble
  * Ensures no overlap with existing bubbles and stays within canvas bounds
- * 
- * @param {number} x - X coordinate
+ * * @param {number} x - X coordinate
  * @param {number} y - Y coordinate
  * @param {number} radius - Bubble radius
  * @param {Array<Bubble>} bubbles - Existing bubbles
@@ -395,8 +390,7 @@ function isPositionValid(x, y, radius, bubbles, spacing = 10) {
 
 /**
  * Get count of active (not popped, not dead) bubbles
- * 
- * @param {Array<Bubble>} bubbles - Bubbles array
+ * * @param {Array<Bubble>} bubbles - Bubbles array
  * @returns {number} Count of active bubbles
  */
 function getActiveBubbleCount(bubbles) {
@@ -405,9 +399,8 @@ function getActiveBubbleCount(bubbles) {
 
 /**
  * Get count of bubbles by type
- * 
- * @param {Array<Bubble>} bubbles - Bubbles array
- * @param {string} type - Bubble type ('normal', 'double', 'freeze', 'decoy', 'bomb')
+ * * @param {Array<Bubble>} bubbles - Bubbles array
+ * @param {string} type - Bubble type ('normal', 'double', 'decoy')
  * @param {boolean} activeOnly - Only count active bubbles (default: true)
  * @returns {number} Count of matching bubbles
  */
@@ -421,8 +414,7 @@ function getBubbleCountByType(bubbles, type, activeOnly = true) {
 /**
  * Clear all bubbles of a specific type
  * Useful for power-ups or special events
- * 
- * @param {Array<Bubble>} bubbles - Bubbles array (modified in place)
+ * * @param {Array<Bubble>} bubbles - Bubbles array (modified in place)
  * @param {string} type - Bubble type to clear (or 'all' for all bubbles)
  * @returns {number} Number of bubbles cleared
  */
@@ -445,8 +437,7 @@ function clearBubblesByType(bubbles, type = 'all') {
 /**
  * Get all bubbles within a radius of a point
  * Useful for area-of-effect mechanics
- * 
- * @param {Array<Bubble>} bubbles - Bubbles array
+ * * @param {Array<Bubble>} bubbles - Bubbles array
  * @param {number} x - Center X coordinate
  * @param {number} y - Center Y coordinate
  * @param {number} radius - Search radius
@@ -468,8 +459,7 @@ function getBubblesInRadius(bubbles, x, y, radius, activeOnly = true) {
 /**
  * Set velocity for all bubbles (or specific types)
  * Useful for freeze effects or speed changes
- * 
- * @param {Array<Bubble>} bubbles - Bubbles array
+ * * @param {Array<Bubble>} bubbles - Bubbles array
  * @param {number} speedX - New X velocity
  * @param {number} speedY - New Y velocity
  * @param {string} type - Bubble type filter (null for all types)
@@ -487,8 +477,7 @@ function setBubbleVelocity(bubbles, speedX, speedY, type = null) {
 /**
  * Scale bubble velocities by a multiplier
  * Useful for slow-motion or speed-up effects
- * 
- * @param {Array<Bubble>} bubbles - Bubbles array
+ * * @param {Array<Bubble>} bubbles - Bubbles array
  * @param {number} multiplier - Speed multiplier
  * @param {string} type - Bubble type filter (null for all types)
  */
@@ -505,8 +494,7 @@ function scaleBubbleVelocity(bubbles, multiplier, type = null) {
 /**
  * Get statistics about current bubbles
  * Useful for debugging and game balance
- * 
- * @param {Array<Bubble>} bubbles - Bubbles array
+ * * @param {Array<Bubble>} bubbles - Bubbles array
  * @returns {Object} Statistics object
  */
 function getBubbleStats(bubbles) {
@@ -518,9 +506,7 @@ function getBubbleStats(bubbles) {
     byType: {
       normal: 0,
       double: 0,
-      freeze: 0,
-      decoy: 0,
-      bomb: 0
+      decoy: 0
     },
     avgSpeed: 0,
     avgRadius: 0

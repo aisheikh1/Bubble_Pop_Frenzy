@@ -7,10 +7,10 @@ import {
   showFasterBubbles,
   showMoreBubbles,
   showMaximumIntensity,
-  showFreezeEnded,
-  showFreezeReady,
-  showTimeFreeze,
-  showBoom,
+  // showFreezeEnded, // Removed Freeze UI
+  // showFreezeReady, // Removed Freeze UI
+  // showTimeFreeze, // Removed Freeze UI
+  // showBoom, // Removed Boom UI
   showOuchPenalty,
   showDoublePop
 } from './ui/urgentMessage.js';
@@ -18,7 +18,7 @@ import { showMessageBox, hideMessageBox } from './ui/messageBox.js';
 import { FloatingTextEffect } from './effects/FloatingTextEffect.js';
 import { effects } from './effects/EffectManager.js';
 import { GiftUnwrapEffect } from './effects/GiftUnwrapEffect.js';
-import { ExplosionEffect } from './effects/ExplosionEffect.js';
+// import { ExplosionEffect } from './effects/ExplosionEffect.js'; // Removed Explosion Effect
 import { ScreenFlashEffect } from './effects/ScreenFlashEffect.js';
 import { CountdownTextEffect } from './effects/CountdownTextEffect.js';
 
@@ -68,8 +68,7 @@ let totalBubblesSpawned = 0;
 let playerMissRate = 0;
 
 // Power-ups & Special Bubbles (now managed by BubbleSpawnConfig)
-let isFreezeModeActive = false;
-let freezeModeTimeLeft = 0;
+// No freeze/frenzy variables to remove.
 
 // Visual Effects
 let lastDifficultyEffectTime = 0;
@@ -99,7 +98,7 @@ const GAME_CONSTANTS = {
   MAX_SPEED_MULTIPLIER: 3.5,
   MIN_SPAWN_INTERVAL: 450,
   MAX_ALLOWED_MISS_RATE: 0.2,
-  FREEZE_DURATION: 5,
+  // FREEZE_DURATION: 5, // Removed
 };
 
 // Get spawn rate config from BubbleSpawnConfig
@@ -277,8 +276,7 @@ async function prepareGame(config, mode) {
   bubbles = [];
   consecutivePops = 0;
   consecutiveNormalPops = 0;
-  isFreezeModeActive = false;
-  freezeModeTimeLeft = 0;
+  // No freeze/frenzy variables to reset
   bubbleSpeedMultiplier = 1;
   lastDifficultyIncreaseTime = 0;
   bubbleSpawnInterval = spawnConfig.initialInterval;
@@ -380,28 +378,17 @@ function gameLoop(now) {
     }
   } else {
     // Survival mode logic
-    if (isFreezeModeActive) {
-      freezeModeTimeLeft -= deltaTime;
-      if (freezeModeTimeLeft <= 0) {
-        isFreezeModeActive = false;
-        bubbles = [];
-        showFreezeEnded();
-      }
-    } else {
-      survivalTimeLeft -= deltaTime;
-      if (survivalTimeLeft <= 0) {
-        survivalTimeLeft = 0;
-        endGame();
-      }
+    survivalTimeLeft -= deltaTime;
+    if (survivalTimeLeft <= 0) {
+      survivalTimeLeft = 0;
+      endGame();
     }
 
     if (totalBubblesSpawned > 0) {
       playerMissRate = bubblesMissed / totalBubblesSpawned;
     }
 
-    if (!isFreezeModeActive) {
-      handleDifficultyIncrease(now);
-    }
+    handleDifficultyIncrease(now);
   }
 
   const activeBubbles = bubbles.filter(b => !b.popped).length;
@@ -410,17 +397,15 @@ function gameLoop(now) {
   const gameState = {
     currentTime: now,
     consecutivePops: consecutivePops,
-    isFreezeModeActive: isFreezeModeActive
+    isFreezeModeActive: false // Always false now after freeze mode removal
   };
 
-  if (!isFreezeModeActive) {
-    if (activeBubbles < spawnConfig.minBubbles) {
-      const spawned = spawnBubble(now, gameCanvas, bubbles, gameMode, null, bubbleSpeedMultiplier, 0, gameState);
-      if (spawned) totalBubblesSpawned += 1;
-    } else if (activeBubbles < spawnConfig.maxBubbles) {
-      const spawned = spawnBubble(now, gameCanvas, bubbles, gameMode, null, bubbleSpeedMultiplier, bubbleSpawnInterval, gameState);
-      if (spawned) totalBubblesSpawned += 1;
-    }
+  if (activeBubbles < spawnConfig.minBubbles) {
+    const spawned = spawnBubble(now, gameCanvas, bubbles, gameMode, null, bubbleSpeedMultiplier, 0, gameState);
+    if (spawned) totalBubblesSpawned += 1;
+  } else if (activeBubbles < spawnConfig.maxBubbles) {
+    const spawned = spawnBubble(now, gameCanvas, bubbles, gameMode, null, bubbleSpeedMultiplier, bubbleSpawnInterval, gameState);
+    if (spawned) totalBubblesSpawned += 1;
   }
 
   gameConfig.canvasManager.clear();
@@ -431,7 +416,7 @@ function gameLoop(now) {
       deltaTime,
       now,
       gameMode,
-      isFreezeModeActive,
+      false, // isFreezeModeActive is always false
       showUrgentMessage,
       endGame,
       gameCanvas
@@ -455,13 +440,11 @@ function gameLoop(now) {
     }
   }
 
-  if (!isFreezeModeActive) {
-    for (let i = 0; i < bubbles.length; i++) {
-      if (bubbles[i].popped) continue;
-      for (let j = i + 1; j < bubbles.length; j++) {
-        if (bubbles[j].popped) continue;
-        handleBubbleCollision(bubbles[i], bubbles[j]);
-      }
+  for (let i = 0; i < bubbles.length; i++) {
+    if (bubbles[i].popped) continue;
+    for (let j = i + 1; j < bubbles.length; j++) {
+      if (bubbles[j].popped) continue;
+      handleBubbleCollision(bubbles[i], bubbles[j]);
     }
   }
 
@@ -488,29 +471,15 @@ function handleCanvasPointerDown(x, y) {
 
     if (distance <= bubble.radius) {
       
-      // Handle freeze bubbles (only for SURVIVAL mode now)
+      // Handle freeze bubbles (removed)
       if (bubble.type === 'freeze') {
-        if (gameMode === 'survival') {
-          if (!isFreezeModeActive) {
-            isFreezeModeActive = true;
-            freezeModeTimeLeft = GAME_CONSTANTS.FREEZE_DURATION;
-            effects.spawn(new ScreenFlashEffect('blue'));
-            showTimeFreeze();
-            effects.spawn(new GiftUnwrapEffect(bubble.x, bubble.y, bubble.radius, bubble.color));
-          }
-          const res = scoringService.handleBubblePop('freeze');
-          spawnPointsText(res.pointsEarned, bubble.x, bubble.y, '#88ccff');
-
-          bubble.popped = true;
-          poppedAny = true;
-          consecutivePops = 0;
-          consecutiveNormalPops = 0;
-          
-          // Notify spawn config
-          BubbleSpawnConfig.notifyBubblePopped('freeze', true);
-          
-          break;
-        }
+        console.warn('Freeze bubble popped, but mechanic is removed. Ignoring pop.');
+        bubble.popped = true;
+        poppedAny = true;
+        consecutivePops = 0;
+        consecutiveNormalPops = 0;
+        BubbleSpawnConfig.notifyBubblePopped('freeze', false);
+        break;
       }
       
       // Handle decoy bubbles
@@ -537,27 +506,8 @@ function handleCanvasPointerDown(x, y) {
         break;
       }
       
-      // Handle bomb bubbles
-      if (bubble.type === 'bomb') {
-        effects.spawn(new ExplosionEffect(bubble.x, bubble.y, 200, 'orange'));
-        effects.spawn(new ScreenFlashEffect('orange'));
-        showBoom();
-        bubbles = [];
-
-        const res = scoringService.handleBubblePop('bomb');
-        spawnPointsText(res.pointsEarned, bubble.x, bubble.y, '#ffbb33');
-
-        bubble.popped = true;
-        poppedAny = true;
-        consecutivePops = 0;
-        consecutiveNormalPops = 0;
-        
-        // Notify spawn config
-        BubbleSpawnConfig.notifyBubblePopped('bomb', true);
-        
-        break;
-      }
-
+      // BOMB BUBBLE LOGIC WAS REMOVED HERE
+      
       // Handle normal and double bubbles
       if (bubble.pop(performance.now())) {
         const res = scoringService.handleBubblePop(bubble.type);
@@ -586,12 +536,6 @@ function handleCanvasPointerDown(x, y) {
         
         // Notify spawn config of successful pop
         BubbleSpawnConfig.notifyBubblePopped(bubble.type, true);
-        
-        // Check if freeze bubble should spawn (spawn config handles this internally)
-        const spawnState = BubbleSpawnConfig.getSpawnState();
-        if (spawnState.freezeBubblePending) {
-          showFreezeReady();
-        }
 
         if ('vibrate' in navigator) {
           navigator.vibrate(50);

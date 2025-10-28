@@ -3,16 +3,13 @@
 /**
  * BubbleSpawnConfig.js
  * Centralized configuration and logic for bubble spawning across all game modes.
- * 
- * This module handles:
+ * * This module handles:
  * - Bubble type definitions per game mode
  * - Weighted random selection of bubble types
- * - Special spawn conditions (combos, time-based triggers)
  * - Spawn rate and timing configurations
- * 
- * Usage:
- *   import { BubbleSpawnConfig } from './BubbleSpawnConfig.js';
- *   const nextType = BubbleSpawnConfig.getNextBubbleType('classic', gameState);
+ * * Usage:
+ * import { BubbleSpawnConfig } from './BubbleSpawnConfig.js';
+ * const nextType = BubbleSpawnConfig.getNextBubbleType('classic', gameState);
  */
 
 // ============================================================================
@@ -25,9 +22,7 @@
 export const BUBBLE_TYPES = {
   NORMAL: 'normal',
   DOUBLE: 'double',
-  FREEZE: 'freeze',
   DECOY: 'decoy',
-  BOMB: 'bomb'
 };
 
 /**
@@ -47,22 +42,10 @@ export const BUBBLE_TYPE_INFO = {
     basePoints: 20,
     tapsRequired: 2
   },
-  [BUBBLE_TYPES.FREEZE]: {
-    name: 'Freeze Bubble',
-    description: 'Activates special mode (frenzy or freeze)',
-    basePoints: 50,
-    tapsRequired: 1
-  },
   [BUBBLE_TYPES.DECOY]: {
     name: 'Decoy Bubble',
     description: 'Penalty bubble - costs points and time',
     basePoints: -50,
-    tapsRequired: 1
-  },
-  [BUBBLE_TYPES.BOMB]: {
-    name: 'Bomb Bubble',
-    description: 'Clears all bubbles, worth 100 points',
-    basePoints: 100,
     tapsRequired: 1
   }
 };
@@ -74,54 +57,21 @@ export const BUBBLE_TYPE_INFO = {
 /**
  * Spawn weights for each game mode
  * Higher weight = higher probability of spawning
- * 
- * Weight system:
- * - Sum of all weights = 100 (percentage-based)
- * - Adjust weights to balance difficulty and fun
- * - Set weight to 0 to disable a bubble type
+ * Weights total 100 for percentage-based selection.
  */
 const SPAWN_WEIGHTS = {
   classic: {
-    [BUBBLE_TYPES.NORMAL]: 0,    // 70% chance
-    [BUBBLE_TYPES.DOUBLE]: 0,    // 25% chance
-    [BUBBLE_TYPES.FREEZE]: 100,     // Spawned via combo (handled separately)
-    [BUBBLE_TYPES.DECOY]: 0,      // 5% chance
-    [BUBBLE_TYPES.BOMB]: 0        // Not available in classic mode
+    // 70% Normal, 25% Double, 5% Decoy (based on original comments/intent)
+    [BUBBLE_TYPES.NORMAL]: 70,
+    [BUBBLE_TYPES.DOUBLE]: 25,
+    [BUBBLE_TYPES.DECOY]: 5
   },
   
   survival: {
-    [BUBBLE_TYPES.NORMAL]: 65,    // 65% chance
-    [BUBBLE_TYPES.DOUBLE]: 20,    // 20% chance
-    [BUBBLE_TYPES.FREEZE]: 0,     // Spawned via combo (10 consecutive pops)
-    [BUBBLE_TYPES.DECOY]: 10,     // 10% chance (higher penalty in survival)
-    [BUBBLE_TYPES.BOMB]: 5        // 5% chance (timed spawn every 20s)
-  }
-};
-
-/**
- * Special spawn conditions for bubble types
- * These override normal random spawn logic
- */
-const SPECIAL_SPAWN_CONDITIONS = {
-  [BUBBLE_TYPES.FREEZE]: {
-    classic: {
-      type: 'combo',
-      comboRequired: 10,           // Spawn after 10 consecutive normal pops
-      description: 'Combo reward (10 pops)'
-    },
-    survival: {
-      type: 'combo',
-      comboRequired: 10,           // Spawn after 10 consecutive pops
-      description: 'Combo reward (10 pops)'
-    }
-  },
-  
-  [BUBBLE_TYPES.BOMB]: {
-    survival: {
-      type: 'timed',
-      interval: 20000,             // Spawn every 20 seconds
-      description: 'Timed spawn (every 20s)'
-    }
+    // 65% Normal, 20% Double, 15% Decoy (Decoy increased to absorb Bomb's 5%)
+    [BUBBLE_TYPES.NORMAL]: 65,
+    [BUBBLE_TYPES.DOUBLE]: 20,
+    [BUBBLE_TYPES.DECOY]: 15
   }
 };
 
@@ -158,16 +108,10 @@ export const SPAWN_RATE_CONFIG = {
 class SpawnState {
   constructor() {
     this.consecutivePops = 0;
-    this.lastBombSpawnTime = 0;
-    this.freezeBubblePending = false;
-    this.bombBubblePending = false;
   }
   
   reset() {
     this.consecutivePops = 0;
-    this.lastBombSpawnTime = 0;
-    this.freezeBubblePending = false;
-    this.bombBubblePending = false;
   }
   
   incrementPops() {
@@ -178,36 +122,7 @@ class SpawnState {
     this.consecutivePops = 0;
   }
   
-  checkFreezeBubbleCombo(gameMode) {
-    const condition = SPECIAL_SPAWN_CONDITIONS[BUBBLE_TYPES.FREEZE][gameMode];
-    if (!condition || condition.type !== 'combo') return false;
-    
-    if (this.consecutivePops >= condition.comboRequired && !this.freezeBubblePending) {
-      this.freezeBubblePending = true;
-      return true;
-    }
-    return false;
-  }
-  
-  checkBombBubbleTimer(gameMode, currentTime) {
-    const condition = SPECIAL_SPAWN_CONDITIONS[BUBBLE_TYPES.BOMB][gameMode];
-    if (!condition || condition.type !== 'timed') return false;
-    
-    if (currentTime - this.lastBombSpawnTime >= condition.interval && !this.bombBubblePending) {
-      this.bombBubblePending = true;
-      this.lastBombSpawnTime = currentTime;
-      return true;
-    }
-    return false;
-  }
-  
-  markFreezeSpawned() {
-    this.freezeBubblePending = false;
-  }
-  
-  markBombSpawned() {
-    this.bombBubblePending = false;
-  }
+  // All special spawn check methods removed
 }
 
 // Global spawn state instance
@@ -219,16 +134,15 @@ const spawnState = new SpawnState();
 
 /**
  * Select a random bubble type based on weighted probabilities
- * 
- * @param {string} gameMode - Current game mode ('classic' or 'survival')
+ * * @param {string} gameMode - Current game mode ('classic' or 'survival')
  * @returns {string} Selected bubble type
  */
 function selectWeightedRandomType(gameMode) {
   const weights = SPAWN_WEIGHTS[gameMode];
   
   if (!weights) {
-    console.warn(`[BubbleSpawnConfig] Unknown game mode: ${gameMode}, defaulting to classic`);
-    return selectWeightedRandomType('classic');
+    console.warn(`[BubbleSpawnConfig] Unknown game mode: ${gameMode}, defaulting to normal`);
+    return BUBBLE_TYPES.NORMAL;
   }
   
   // Build cumulative weight array
@@ -269,52 +183,17 @@ function selectWeightedRandomType(gameMode) {
 
 /**
  * Get the next bubble type to spawn
- * Handles both random spawns and special condition spawns
- * 
- * @param {string} gameMode - Current game mode ('classic' or 'survival')
+ * Now exclusively uses weighted random selection.
+ * * @param {string} gameMode - Current game mode ('classic' or 'survival')
  * @param {Object} gameState - Current game state
- * @param {number} gameState.currentTime - Current timestamp
- * @param {number} gameState.consecutivePops - Number of consecutive pops
- * @param {boolean} gameState.isFreezeModeActive - Whether freeze mode is active
- * @returns {string|null} Bubble type to spawn, or null for random spawn
+ * @returns {string} Bubble type to spawn
  */
 export function getNextBubbleType(gameMode, gameState = {}) {
-  const {
-    currentTime = 0,
-    consecutivePops = 0,
-    isFreezeModeActive = false
-  } = gameState;
+  const { consecutivePops = 0 } = gameState;
   
   // Update internal state
   if (consecutivePops !== undefined) {
     spawnState.consecutivePops = consecutivePops;
-  }
-  
-  // Don't spawn special bubbles during freeze mode
-  if (isFreezeModeActive) {
-    return selectWeightedRandomType(gameMode);
-  }
-  
-  // Check for pending special spawns
-  if (spawnState.freezeBubblePending) {
-    spawnState.markFreezeSpawned();
-    return BUBBLE_TYPES.FREEZE;
-  }
-  
-  if (spawnState.bombBubblePending) {
-    spawnState.markBombSpawned();
-    return BUBBLE_TYPES.BOMB;
-  }
-  
-  // Check for new special spawn triggers
-  if (spawnState.checkFreezeBubbleCombo(gameMode)) {
-    // Will spawn on next call
-    console.log(`[BubbleSpawnConfig] Freeze bubble unlocked via combo!`);
-  }
-  
-  if (spawnState.checkBombBubbleTimer(gameMode, currentTime)) {
-    // Will spawn on next call
-    console.log(`[BubbleSpawnConfig] Bomb bubble ready (timed spawn)`);
   }
   
   // Default: weighted random selection
@@ -324,8 +203,7 @@ export function getNextBubbleType(gameMode, gameState = {}) {
 /**
  * Notify the spawn config that a bubble was popped
  * Updates combo tracking
- * 
- * @param {string} bubbleType - Type of bubble that was popped
+ * * @param {string} bubbleType - Type of bubble that was popped
  * @param {boolean} wasSuccessful - Whether the pop was successful (not a decoy)
  */
 export function notifyBubblePopped(bubbleType, wasSuccessful = true) {
@@ -353,35 +231,12 @@ export function resetSpawnState() {
 }
 
 /**
- * Get current spawn state (for debugging)
- * @returns {Object} Current spawn state
- */
-export function getSpawnState() {
-  return {
-    consecutivePops: spawnState.consecutivePops,
-    freezeBubblePending: spawnState.freezeBubblePending,
-    bombBubblePending: spawnState.bombBubblePending,
-    lastBombSpawnTime: spawnState.lastBombSpawnTime
-  };
-}
-
-/**
  * Get spawn weights for a game mode (for debugging/balancing)
  * @param {string} gameMode - Game mode to query
  * @returns {Object} Spawn weights
  */
 export function getSpawnWeights(gameMode) {
   return { ...SPAWN_WEIGHTS[gameMode] };
-}
-
-/**
- * Get special spawn conditions for a bubble type (for debugging)
- * @param {string} bubbleType - Bubble type to query
- * @param {string} gameMode - Game mode to query
- * @returns {Object|null} Spawn condition or null
- */
-export function getSpecialSpawnCondition(bubbleType, gameMode) {
-  return SPECIAL_SPAWN_CONDITIONS[bubbleType]?.[gameMode] || null;
 }
 
 /**
@@ -394,9 +249,8 @@ export function isBubbleTypeAvailable(bubbleType, gameMode) {
   const weights = SPAWN_WEIGHTS[gameMode];
   if (!weights) return false;
   
-  // Check if weight > 0 OR has special spawn condition
-  return weights[bubbleType] > 0 || 
-         SPECIAL_SPAWN_CONDITIONS[bubbleType]?.[gameMode] !== undefined;
+  // Check if weight > 0
+  return weights[bubbleType] > 0;
 }
 
 /**
@@ -405,8 +259,11 @@ export function isBubbleTypeAvailable(bubbleType, gameMode) {
  * @returns {Array<string>} Array of available bubble types
  */
 export function getAvailableBubbleTypes(gameMode) {
+  const weights = SPAWN_WEIGHTS[gameMode];
+  if (!weights) return [];
+
   return Object.values(BUBBLE_TYPES).filter(type => 
-    isBubbleTypeAvailable(type, gameMode)
+    weights[type] > 0
   );
 }
 
@@ -444,9 +301,7 @@ export const BubbleSpawnConfig = {
   resetSpawnState,
   
   // Query API
-  getSpawnState,
   getSpawnWeights,
-  getSpecialSpawnCondition,
   isBubbleTypeAvailable,
   getAvailableBubbleTypes,
   
@@ -466,7 +321,6 @@ export const BubbleSpawnConfig = {
 if (typeof window !== 'undefined') {
   window.bubbleSpawnDebug = {
     getWeights: (mode) => getSpawnWeights(mode),
-    getState: () => getSpawnState(),
     testSpawn: (mode, count = 100) => {
       const results = {};
       for (let i = 0; i < count; i++) {
