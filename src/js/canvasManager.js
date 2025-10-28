@@ -10,6 +10,9 @@ export class CanvasManager {
     this.isVisible = false;
     this.isGameActive = false;
     
+    // Set background color (default white)
+    this.backgroundColor = '#FFFFFF';
+    
     // Set up resize handling
     this.setupResizeHandler();
     
@@ -18,6 +21,12 @@ export class CanvasManager {
     
     // Initialize as hidden
     this.hide();
+    
+    console.log('[CanvasManager] Initialized:', {
+      width: this.canvas.width,
+      height: this.canvas.height,
+      backgroundColor: this.backgroundColor
+    });
   }
   
   show() {
@@ -53,8 +62,29 @@ export class CanvasManager {
     this.isVisible = false;
   }
   
+  /**
+   * Clear canvas and fill with background color
+   * CRITICAL: This must be called BEFORE drawing each frame
+   */
   clear() {
+    // Clear all pixels
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    
+    // Fill with white background
+    this.ctx.fillStyle = this.backgroundColor;
+    this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+    
+    // Reset any transforms that might affect drawing
+    this.ctx.setTransform(1, 0, 0, 1, 0, 0);
+  }
+  
+  /**
+   * Set background color for canvas clearing
+   * @param {string} color - CSS color string (e.g., '#FFFFFF', 'white', 'rgb(255,255,255)')
+   */
+  setBackgroundColor(color) {
+    this.backgroundColor = color;
+    console.log('[CanvasManager] Background color set to:', color);
   }
   
   resize() {
@@ -110,6 +140,28 @@ export class CanvasManager {
     return this.canvas.height;
   }
   
+  /**
+   * Debug: Draw a test pattern to verify canvas is working
+   */
+  debugTest() {
+    console.log('[CanvasManager] Running debug test...');
+    
+    // Clear canvas
+    this.clear();
+    
+    // Draw test pattern
+    this.ctx.fillStyle = '#00FF00';
+    this.ctx.fillRect(10, 10, 50, 50);
+    
+    this.ctx.fillStyle = '#FF0000';
+    this.ctx.fillRect(70, 10, 50, 50);
+    
+    this.ctx.fillStyle = '#0000FF';
+    this.ctx.fillRect(130, 10, 50, 50);
+    
+    console.log('[CanvasManager] Debug test complete. You should see 3 colored squares.');
+  }
+  
   // Cleanup method
   destroy() {
     window.removeEventListener("resize", () => this.resize());
@@ -117,4 +169,56 @@ export class CanvasManager {
       this.canvas.removeEventListener("pointerdown", this.boundHandler);
     }
   }
+}
+
+// Add window debug helper
+if (typeof window !== 'undefined') {
+  window.debugCanvas = {
+    test: () => {
+      const canvas = document.getElementById('gameCanvas');
+      if (!canvas) {
+        console.error('Canvas not found');
+        return;
+      }
+      
+      const ctx = canvas.getContext('2d');
+      
+      // Clear
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      
+      // Draw test
+      ctx.fillStyle = '#00FF00';
+      ctx.fillRect(50, 50, 100, 100);
+      
+      console.log('Canvas test drawn. You should see a green square.');
+    },
+    
+    checkColor: () => {
+      const canvas = document.getElementById('gameCanvas');
+      if (!canvas) return;
+      
+      const ctx = canvas.getContext('2d');
+      const imageData = ctx.getImageData(0, 0, 1, 1);
+      console.log('Top-left pixel RGBA:', imageData.data);
+      console.log('Is white?', imageData.data[0] === 255 && imageData.data[1] === 255 && imageData.data[2] === 255);
+    },
+    
+    forceWhite: () => {
+      const canvas = document.getElementById('gameCanvas');
+      if (!canvas) return;
+      
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      console.log('Canvas forced to white');
+    }
+  };
+  
+  console.log('[CanvasManager] Debug helpers available:');
+  console.log('  window.debugCanvas.test() - Draw test pattern');
+  console.log('  window.debugCanvas.checkColor() - Check pixel color');
+  console.log('  window.debugCanvas.forceWhite() - Force white canvas');
 }

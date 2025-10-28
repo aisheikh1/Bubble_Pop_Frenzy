@@ -25,6 +25,9 @@ import { CountdownTextEffect } from './effects/CountdownTextEffect.js';
 // SCORING: point to your actual folder
 import { scoringService } from './ScoringEngine/index.js';
 
+// BUBBLE SPAWN CONFIG: Import centralized spawn configuration
+import { BubbleSpawnConfig } from './BubbleSpawnConfig.js';
+
 /* ---------------------------
    Compatibility shim
    ---------------------------
@@ -64,12 +67,9 @@ let bubblesMissed = 0;
 let totalBubblesSpawned = 0;
 let playerMissRate = 0;
 
-// Power-ups & Special Bubbles
-let freezeBubbleSpawnPending = false;
+// Power-ups & Special Bubbles (now managed by BubbleSpawnConfig)
 let isFreezeModeActive = false;
 let freezeModeTimeLeft = 0;
-let bombBubbleSpawnPending = false;
-let lastBombSpawnTime = 0;
 
 // Visual Effects
 let lastDifficultyEffectTime = 0;
@@ -100,10 +100,12 @@ const GAME_CONSTANTS = {
   MIN_SPAWN_INTERVAL: 450,
   MAX_ALLOWED_MISS_RATE: 0.2,
   FREEZE_DURATION: 5,
-  COMBO_NEEDED: 10,
-  BOMB_SPAWN_INTERVAL: 20000,
-  MIN_BUBBLES: 5,
-  MAX_BUBBLES: 10
+};
+
+// Get spawn rate config from BubbleSpawnConfig
+const getSpawnRateConfig = (mode) => {
+  const config = BubbleSpawnConfig.SPAWN_RATE_CONFIG[mode];
+  return config || BubbleSpawnConfig.SPAWN_RATE_CONFIG.classic;
 };
 
 // ---------------------------
@@ -143,8 +145,10 @@ function togglePause() {
   if (!gameActive || !gamePrepared) return;
   gamePaused = !gamePaused;
   if (gameConfig && gameConfig.pauseButton) gameConfig.pauseButton.toggle();
-  if (gamePaused) showPauseOverlay();
-  else {
+  
+  if (gamePaused) {
+    showPauseOverlay();
+  } else {
     hidePauseOverlay();
     lastFrameTime = performance.now();
   }
@@ -159,6 +163,9 @@ function restartGame() {
   if (gameConfig && gameConfig.pauseButton) gameConfig.pauseButton.reset();
 
   bubbles = [];
+  
+  // Reset bubble spawn config
+  BubbleSpawnConfig.resetSpawnState();
 
   if (gameConfig && gameMode) {
     prepareGame(gameConfig, gameMode);
@@ -172,6 +179,9 @@ function goToMainMenu() {
   if (animFrameId) cancelAnimationFrame(animFrameId);
   hidePauseOverlay();
   if (gameConfig && gameConfig.pauseButton) gameConfig.pauseButton.reset();
+
+  // Reset bubble spawn config
+  BubbleSpawnConfig.resetSpawnState();
 
   if (gameConfig && gameConfig.canvasManager) gameConfig.canvasManager.hide();
   setBackButtonVisible(false);
@@ -260,18 +270,18 @@ async function prepareGame(config, mode) {
   gameCtx = config.canvasManager.context;
   gameMode = mode;
 
+  // Get spawn rate config for this mode
+  const spawnConfig = getSpawnRateConfig(mode);
+
   // Reset gameplay state
   bubbles = [];
   consecutivePops = 0;
   consecutiveNormalPops = 0;
-  freezeBubbleSpawnPending = false;
   isFreezeModeActive = false;
   freezeModeTimeLeft = 0;
-  bombBubbleSpawnPending = false;
-  lastBombSpawnTime = 0;
   bubbleSpeedMultiplier = 1;
   lastDifficultyIncreaseTime = 0;
-  bubbleSpawnInterval = 1000;
+  bubbleSpawnInterval = spawnConfig.initialInterval;
   lastIncreaseType = 'spawn';
   difficultyLevel = 1;
   lastDifficultyEffectTime = 0;
@@ -285,6 +295,9 @@ async function prepareGame(config, mode) {
   if (scoringService && typeof scoringService.reset === 'function') {
     scoringService.reset();
   }
+  
+  // Reset bubble spawn config
+  BubbleSpawnConfig.resetSpawnState();
 
   if (gameConfig && gameConfig.pauseButton) gameConfig.pauseButton.reset();
   hidePauseOverlay();
@@ -318,7 +331,10 @@ function actuallyStartGame() {
     classicStartTime = performance.now();
   }
 
-  lastDifficultyIncreaseTime = performance.now();
+  // Only start difficulty increase in survival mode
+  if (gameMode === 'survival') {
+    lastDifficultyIncreaseTime = performance.now();
+  }
 
   gameActive = true;
   gamePaused = false;
@@ -348,13 +364,22 @@ function gameLoop(now) {
 
   if (!gameActive) return;
 
+  // ---------------------------
+  // NORMAL GAME LOOP
+  // ---------------------------
+  
+  // Get spawn rate config
+  const spawnConfig = getSpawnRateConfig(gameMode);
+  
   if (gameMode === 'classic') {
+    // In classic mode, timer decreases normally
     classicTimeLeft -= deltaTime;
     if (classicTimeLeft <= 0) {
       classicTimeLeft = 0;
       endGame();
     }
   } else {
+    // Survival mode logic
     if (isFreezeModeActive) {
       freezeModeTimeLeft -= deltaTime;
       if (freezeModeTimeLeft <= 0) {
@@ -381,30 +406,21 @@ function gameLoop(now) {
 
   const activeBubbles = bubbles.filter(b => !b.popped).length;
 
+  // Build game state for spawn config
+  const gameState = {
+    currentTime: now,
+    consecutivePops: consecutivePops,
+    isFreezeModeActive: isFreezeModeActive
+  };
+
   if (!isFreezeModeActive) {
-    if (activeBubbles < GAME_CONSTANTS.MIN_BUBBLES) {
-      const spawned = spawnBubble(now, gameCanvas, bubbles, gameMode, null, bubbleSpeedMultiplier, 0);
+    if (activeBubbles < spawnConfig.minBubbles) {
+      const spawned = spawnBubble(now, gameCanvas, bubbles, gameMode, null, bubbleSpeedMultiplier, 0, gameState);
       if (spawned) totalBubblesSpawned += 1;
-    } else if (activeBubbles < GAME_CONSTANTS.MAX_BUBBLES) {
-      const spawned = spawnBubble(now, gameCanvas, bubbles, gameMode, null, bubbleSpeedMultiplier, bubbleSpawnInterval);
+    } else if (activeBubbles < spawnConfig.maxBubbles) {
+      const spawned = spawnBubble(now, gameCanvas, bubbles, gameMode, null, bubbleSpeedMultiplier, bubbleSpawnInterval, gameState);
       if (spawned) totalBubblesSpawned += 1;
     }
-
-    if (gameMode === 'survival' && now - lastBombSpawnTime > GAME_CONSTANTS.BOMB_SPAWN_INTERVAL) {
-      if (activeBubbles < GAME_CONSTANTS.MAX_BUBBLES) {
-        bombBubbleSpawnPending = true;
-        lastBombSpawnTime = now;
-      }
-    }
-  }
-
-  if (freezeBubbleSpawnPending && activeBubbles < GAME_CONSTANTS.MAX_BUBBLES) {
-    spawnBubble(now, gameCanvas, bubbles, gameMode, 'freeze');
-    freezeBubbleSpawnPending = false;
-  }
-  if (bombBubbleSpawnPending && activeBubbles < GAME_CONSTANTS.MAX_BUBBLES) {
-    spawnBubble(now, gameCanvas, bubbles, gameMode, 'bomb');
-    bombBubbleSpawnPending = false;
   }
 
   gameConfig.canvasManager.clear();
@@ -428,6 +444,9 @@ function gameLoop(now) {
         bubblesMissed += 1;
         consecutivePops = 0;
         consecutiveNormalPops = 0;
+        
+        // Notify spawn config of missed bubble
+        BubbleSpawnConfig.notifyBubbleMissed();
       }
     }
 
@@ -468,36 +487,58 @@ function handleCanvasPointerDown(x, y) {
     const distance = Math.sqrt(dx * dx + dy * dy);
 
     if (distance <= bubble.radius) {
+      
+      // Handle freeze bubbles (only for SURVIVAL mode now)
+      if (bubble.type === 'freeze') {
+        if (gameMode === 'survival') {
+          if (!isFreezeModeActive) {
+            isFreezeModeActive = true;
+            freezeModeTimeLeft = GAME_CONSTANTS.FREEZE_DURATION;
+            effects.spawn(new ScreenFlashEffect('blue'));
+            showTimeFreeze();
+            effects.spawn(new GiftUnwrapEffect(bubble.x, bubble.y, bubble.radius, bubble.color));
+          }
+          const res = scoringService.handleBubblePop('freeze');
+          spawnPointsText(res.pointsEarned, bubble.x, bubble.y, '#88ccff');
+
+          bubble.popped = true;
+          poppedAny = true;
+          consecutivePops = 0;
+          consecutiveNormalPops = 0;
+          
+          // Notify spawn config
+          BubbleSpawnConfig.notifyBubblePopped('freeze', true);
+          
+          break;
+        }
+      }
+      
+      // Handle decoy bubbles
       if (bubble.type === 'decoy') {
         const res = scoringService.handleBubblePop('decoy');
-        survivalTimeLeft -= GAME_CONSTANTS.TIME_PENALTY_PER_DECOY;
+        
+        if (gameMode === 'survival') {
+          survivalTimeLeft -= GAME_CONSTANTS.TIME_PENALTY_PER_DECOY;
+          effects.spawn(new FloatingTextEffect(gameCanvas.width / 2, 50, '-5s', '#ff5555'));
+        }
+        
         effects.spawn(new ScreenFlashEffect('red'));
         showOuchPenalty();
-        effects.spawn(new FloatingTextEffect(gameCanvas.width / 2, 50, '-5s', '#ff5555'));
         spawnPointsText(res.pointsEarned, bubble.x, bubble.y, '#ff7777');
 
         bubble.popped = true;
         poppedAny = true;
         consecutivePops = 0;
         consecutiveNormalPops = 0;
+        
+        // Notify spawn config (decoy is not a successful pop)
+        BubbleSpawnConfig.notifyBubblePopped('decoy', false);
+        
         break;
-      } else if (bubble.type === 'freeze') {
-        if (!isFreezeModeActive) {
-          isFreezeModeActive = true;
-          freezeModeTimeLeft = GAME_CONSTANTS.FREEZE_DURATION;
-          effects.spawn(new ScreenFlashEffect('blue'));
-          showTimeFreeze();
-          effects.spawn(new GiftUnwrapEffect(bubble.x, bubble.y, bubble.radius, bubble.color));
-        }
-        const res = scoringService.handleBubblePop('freeze');
-        spawnPointsText(res.pointsEarned, bubble.x, bubble.y, '#88ccff');
-
-        bubble.popped = true;
-        poppedAny = true;
-        consecutivePops = 0;
-        consecutiveNormalPops = 0;
-        break;
-      } else if (bubble.type === 'bomb') {
+      }
+      
+      // Handle bomb bubbles
+      if (bubble.type === 'bomb') {
         effects.spawn(new ExplosionEffect(bubble.x, bubble.y, 200, 'orange'));
         effects.spawn(new ScreenFlashEffect('orange'));
         showBoom();
@@ -510,9 +551,14 @@ function handleCanvasPointerDown(x, y) {
         poppedAny = true;
         consecutivePops = 0;
         consecutiveNormalPops = 0;
+        
+        // Notify spawn config
+        BubbleSpawnConfig.notifyBubblePopped('bomb', true);
+        
         break;
       }
 
+      // Handle normal and double bubbles
       if (bubble.pop(performance.now())) {
         const res = scoringService.handleBubblePop(bubble.type);
         spawnPointsText(res.pointsEarned, bubble.x, bubble.y, bubble.color || '#ffffff');
@@ -537,13 +583,13 @@ function handleCanvasPointerDown(x, y) {
         }
 
         consecutivePops += 1;
-        if (
-          gameMode === 'survival' &&
-          (consecutivePops % GAME_CONSTANTS.COMBO_NEEDED === 0) &&
-          !freezeBubbleSpawnPending &&
-          !isFreezeModeActive
-        ) {
-          freezeBubbleSpawnPending = true;
+        
+        // Notify spawn config of successful pop
+        BubbleSpawnConfig.notifyBubblePopped(bubble.type, true);
+        
+        // Check if freeze bubble should spawn (spawn config handles this internally)
+        const spawnState = BubbleSpawnConfig.getSpawnState();
+        if (spawnState.freezeBubblePending) {
           showFreezeReady();
         }
 
@@ -559,6 +605,7 @@ function handleCanvasPointerDown(x, y) {
   if (!poppedAny) {
     consecutivePops = 0;
     consecutiveNormalPops = 0;
+    BubbleSpawnConfig.notifyBubbleMissed();
   }
 }
 
@@ -590,6 +637,9 @@ function endGame() {
   setRestartButtonVisible(false);
   hidePauseOverlay();
   if (gameConfig && gameConfig.pauseButton) gameConfig.pauseButton.reset();
+  
+  // Reset bubble spawn config
+  BubbleSpawnConfig.resetSpawnState();
 
   const stats = scoringService.getCurrentStats();
   const totalScore = (stats && typeof stats.totalScore === 'number') ? stats.totalScore : 0;
