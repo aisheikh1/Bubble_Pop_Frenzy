@@ -6,9 +6,9 @@ import { Bubble, spawnBubble, handleBubbleCollision } from './bubbles.js';
 import { showMessageBox, hideMessageBox } from './ui/messageBox.js';
 import { FloatingTextEffect } from './effects/FloatingTextEffect.js';
 import { effects } from './effects/EffectManager.js';
-import { GiftUnwrapEffect } from './effects/GiftUnwrapEffect.js';
-// import { ExplosionEffect } from './effects/ExplosionEffect.js'; // Removed Explosion Effect
-import { ScreenFlashEffect } from './effects/ScreenFlashEffect.js';
+// The following non-existent effects have been removed:
+// import { GiftUnwrapEffect } from './effects/GiftUnwrapEffect.js';
+// import { ScreenFlashEffect } from './effects/ScreenFlashEffect.js';
 import { CountdownTextEffect } from './effects/CountdownTextEffect.js';
 
 // SCORING: point to your actual folder
@@ -61,7 +61,8 @@ let playerMissRate = 0;
 
 // Visual Effects
 let lastDifficultyEffectTime = 0;
-let flashTriggered = false;
+// flashTriggered removed as ScreenFlashEffect is removed
+// let flashTriggered = false; 
 
 // Game Configuration
 let gameConfig = {};
@@ -209,14 +210,15 @@ async function startCountdown(config) {
 }
 
 function handleDifficultyIncrease(now) {
-  if (!flashTriggered && now - lastDifficultyIncreaseTime > GAME_CONSTANTS.DIFFICULTY_INCREASE_INTERVAL - 2000) {
-    effects.spawn(new ScreenFlashEffect('yellow', 0.3));
-    flashTriggered = true;
-  }
+  // ScreenFlashEffect logic removed
+  // if (!flashTriggered && now - lastDifficultyIncreaseTime > GAME_CONSTANTS.DIFFICULTY_INCREASE_INTERVAL - 2000) {
+  //   effects.spawn(new ScreenFlashEffect('yellow', 0.3));
+  //   flashTriggered = true;
+  // }
 
   if (now - lastDifficultyIncreaseTime > GAME_CONSTANTS.DIFFICULTY_INCREASE_INTERVAL) {
     difficultyLevel += 1;
-    flashTriggered = false;
+    // flashTriggered = false; // flashTriggered logic removed
 
     let speedIncreaseAmount = 0.4;
     let showMsg = true;
@@ -231,7 +233,7 @@ function handleDifficultyIncrease(now) {
       }
       bubbleSpeedMultiplier = Math.min(bubbleSpeedMultiplier + speedIncreaseAmount, GAME_CONSTANTS.MAX_SPEED_MULTIPLIER);
       // if (showMsg) showFasterBubbles(difficultyLevel); // Removed urgentMessage.js call
-      effects.spawn(new ScreenFlashEffect('lime', 0.4));
+      // effects.spawn(new ScreenFlashEffect('lime', 0.4)); // ScreenFlashEffect removed
       lastIncreaseType = 'speed';
     } else {
       if (playerMissRate > GAME_CONSTANTS.MAX_ALLOWED_MISS_RATE) {
@@ -241,7 +243,7 @@ function handleDifficultyIncrease(now) {
       } else {
         bubbleSpawnInterval = Math.max(bubbleSpawnInterval * 0.7, GAME_CONSTANTS.MIN_SPAWN_INTERVAL);
       }
-      effects.spawn(new ScreenFlashEffect('cyan', 0.4));
+      // effects.spawn(new ScreenFlashEffect('cyan', 0.4)); // ScreenFlashEffect removed
       // if (showMsg) showMoreBubbles(difficultyLevel); // Removed urgentMessage.js call
       lastIncreaseType = 'spawn';
     }
@@ -250,7 +252,7 @@ function handleDifficultyIncrease(now) {
 
     if (difficultyLevel % 3 === 0) {
       // showMaximumIntensity(); // Removed urgentMessage.js call
-      effects.spawn(new ScreenFlashEffect('orange', 0.6));
+      // effects.spawn(new ScreenFlashEffect('orange', 0.6)); // ScreenFlashEffect removed
     }
   }
 }
@@ -275,7 +277,8 @@ async function prepareGame(config, mode) {
   lastIncreaseType = 'spawn';
   difficultyLevel = 1;
   lastDifficultyEffectTime = 0;
-  flashTriggered = false;
+  // flashTriggered removed
+  // flashTriggered = false;
   bubblesMissed = 0;
   totalBubblesSpawned = 0;
   playerMissRate = 0;
@@ -483,7 +486,7 @@ function handleCanvasPointerDown(x, y) {
           effects.spawn(new FloatingTextEffect(gameCanvas.width / 2, 50, '-5s', '#ff5555'));
         }
         
-        effects.spawn(new ScreenFlashEffect('red'));
+        // effects.spawn(new ScreenFlashEffect('red')); // ScreenFlashEffect removed
         // showOuchPenalty(); // Removed urgentMessage.js call
         spawnPointsText(res.pointsEarned, bubble.x, bubble.y, '#ff7777');
 

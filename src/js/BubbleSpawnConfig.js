@@ -63,15 +63,15 @@ const SPAWN_WEIGHTS = {
   classic: {
     // 70% Normal, 25% Double, 5% Decoy (based on original comments/intent)
     [BUBBLE_TYPES.NORMAL]: 70,
-    [BUBBLE_TYPES.DOUBLE]: 25,
-    [BUBBLE_TYPES.DECOY]: 5
+    [BUBBLE_TYPES.DOUBLE]: 30,
+    [BUBBLE_TYPES.DECOY]: 0
   },
   
   survival: {
     // 65% Normal, 20% Double, 15% Decoy (Decoy increased to absorb Bomb's 5%)
-    [BUBBLE_TYPES.NORMAL]: 65,
-    [BUBBLE_TYPES.DOUBLE]: 20,
-    [BUBBLE_TYPES.DECOY]: 15
+    [BUBBLE_TYPES.NORMAL]: 40,
+    [BUBBLE_TYPES.DOUBLE]: 40,
+    [BUBBLE_TYPES.DECOY]: 20
   }
 };
 
