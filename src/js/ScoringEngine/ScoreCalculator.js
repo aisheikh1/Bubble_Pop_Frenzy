@@ -26,11 +26,7 @@ export class ScoreCalculator {
             case ScoreConfig.BUBBLE_TYPES.DECOY:
                 return pointsConfig.DECOY;
                 
-            case ScoreConfig.BUBBLE_TYPES.FREEZE:
-                return pointsConfig.FREEZE;
-                
-            case ScoreConfig.BUBBLE_TYPES.BOMB:
-                return pointsConfig.BOMB;
+
                 
             default:
                 console.warn(`Unknown bubble type: ${bubbleType}, using normal points`);
@@ -129,8 +125,7 @@ export class ScoringService {
             normalBubbles: this.bubblesByType.normal,
             doubleBubbles: this.bubblesByType.double,
             decoyBubbles: this.bubblesByType.decoy,
-            freezeBubbles: this.bubblesByType.freeze,
-            bombBubbles: this.bubblesByType.bomb,
+            
             
             // Percentage calculations
             normalPercentage: this._calculatePercentage('normal'),

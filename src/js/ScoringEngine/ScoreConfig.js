@@ -8,18 +8,16 @@ export const ScoreConfig = {
     BASE_POINTS: {
         NORMAL: 10,
         DOUBLE: 25,
-        DECOY: -30,
-        FREEZE: 50,
-        BOMB: 75
+        DECOY: -30
+        
     },
     
     // Bubble type identifiers (must match game.js usage)
     BUBBLE_TYPES: {
         NORMAL: 'normal',
         DOUBLE: 'double', 
-        DECOY: 'decoy',
-        FREEZE: 'freeze',
-        BOMB: 'bomb'
+        DECOY: 'decoy'
+        
     },
     
     // Initial game state values
@@ -29,9 +27,8 @@ export const ScoreConfig = {
         bubblesByType: {
             normal: 0,
             double: 0,
-            decoy: 0,
-            freeze: 0,
-            bomb: 0
+            decoy: 0
+            
         }
     }
 };
