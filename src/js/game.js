@@ -1,123 +1,92 @@
 // src/js/game.js
-
-import { Bubble, spawnBubble, handleBubbleCollision } from './bubbles.js';
-// REMOVED: import of urgentMessage.js functions
+// Parent Game Orchestrator - Manages game modes and provides shared utilities
 
 import { showMessageBox, hideMessageBox } from './ui/messageBox.js';
 import { FloatingTextEffect } from './effects/FloatingTextEffect.js';
 import { effects } from './effects/EffectManager.js';
-// The following non-existent effects have been removed:
-// import { GiftUnwrapEffect } from './effects/GiftUnwrapEffect.js';
-// import { ScreenFlashEffect } from './effects/ScreenFlashEffect.js';
 import { CountdownTextEffect } from './effects/CountdownTextEffect.js';
-
-// SCORING: point to your actual folder
 import { scoringService } from './ScoringEngine/index.js';
-
-// BUBBLE SPAWN CONFIG: Import centralized spawn configuration
 import { BubbleSpawnConfig } from './BubbleSpawnConfig.js';
 
+// Import game mode implementations
+import { ClassicMode } from './ClassicMode.js';
+import { SurvivalMode } from './SurvivalMode.js';
+
 /* ---------------------------
-   Compatibility shim
-   ---------------------------
-   Some older code (e.g., bubbles.js) calls effects.add(...),
-   while the current EffectManager exposes effects.spawn(...).
-   This shim aliases add -> spawn to avoid TypeErrors.
-*/
+   Compatibility shim for effects
+   ---------------------------*/
 if (effects && typeof effects.add !== 'function' && typeof effects.spawn === 'function') {
   effects.add = (...args) => effects.spawn(...args);
 }
 
-// ---------------------------
-// Game State Variables
-// ---------------------------
-let bubbles = [];
-let gameActive = false;
-let gamePrepared = false;
-let gamePaused = false;
+/* ===========================================================================
+   GAME MODE REGISTRY
+   ===========================================================================*/
 
-// Time & Scoring
-let consecutivePops = 0;
-let consecutiveNormalPops = 0;
+const MODE_REGISTRY = {
+  classic: null,
+  survival: null
+};
 
-// Game Modes
-let gameMode = 'classic';
-let classicTimeLeft = 60;
-let classicStartTime = 0;
-let survivalTimeLeft = 60;
+let activeMode = null;
+let activeModeKey = null;
 
-// Difficulty Scaling
-let bubbleSpeedMultiplier = 1;
-let bubbleSpawnInterval = 1000;
-let lastDifficultyIncreaseTime = 0;
-let difficultyLevel = 1;
-let lastIncreaseType = 'spawn';
-let bubblesMissed = 0;
-let totalBubblesSpawned = 0;
-let playerMissRate = 0;
+/* ===========================================================================
+   SHARED GAME STATE
+   ===========================================================================*/
 
-// Power-ups & Special Bubbles (now managed by BubbleSpawnConfig)
-// No freeze/frenzy variables to remove.
-
-// Visual Effects
-let lastDifficultyEffectTime = 0;
-// flashTriggered removed as ScreenFlashEffect is removed
-// let flashTriggered = false; 
-
-// Game Configuration
 let gameConfig = {};
-let gameCanvas;
-let gameCtx;
-
-// Animation Frame
-let animFrameId = null;
-let lastFrameTime = 0;
-
-// Pause Overlay
 let pauseOverlay = null;
 
-// ---------------------------
-// Game Constants
-// ---------------------------
-const GAME_CONSTANTS = {
-  TIME_BONUS_PER_NORMAL_POP: 0.5,
-  TIME_BONUS_PER_DOUBLE_TAP: 1,
-  TIME_PENALTY_PER_DECOY: 5,
-  TIME_PENALTY_PER_MISS: 2,
-  DIFFICULTY_INCREASE_INTERVAL: 25000,
-  MAX_SPEED_MULTIPLIER: 3.5,
-  MIN_SPAWN_INTERVAL: 450,
-  MAX_ALLOWED_MISS_RATE: 0.2,
-  // FREEZE_DURATION: 5, // Removed
-};
+/* ===========================================================================
+   SHARED UTILITIES - Available to all game modes
+   ===========================================================================*/
 
-// Get spawn rate config from BubbleSpawnConfig
-const getSpawnRateConfig = (mode) => {
-  const config = BubbleSpawnConfig.SPAWN_RATE_CONFIG[mode];
-  return config || BubbleSpawnConfig.SPAWN_RATE_CONFIG.classic;
-};
-
-// Define a no-op function to replace urgentMessage calls
-const noOp = () => {};
-
-// ---------------------------
-// Helpers
-// ---------------------------
+/**
+ * Spawn floating points text effect
+ * @param {number} points - Points to display
+ * @param {number} x - X position
+ * @param {number} y - Y position
+ * @param {string} color - Text color
+ */
 function spawnPointsText(points, x, y, color) {
   const sign = points > 0 ? '+' : '';
   effects.spawn(new FloatingTextEffect(x, y, sign + String(points), color || '#ffffff'));
 }
 
-function setBackButtonVisible(v) {
-  if (gameConfig && gameConfig.backButton) (v ? gameConfig.backButton.show() : gameConfig.backButton.hide());
-}
-function setRestartButtonVisible(v) {
-  if (gameConfig && gameConfig.restartButton) (v ? gameConfig.restartButton.show() : gameConfig.restartButton.hide());
-}
-function setPauseButtonVisible(v) {
-  if (gameConfig && gameConfig.pauseButton) (v ? gameConfig.pauseButton.show() : gameConfig.pauseButton.hide());
+/**
+ * Set back button visibility
+ * @param {boolean} visible - Show or hide
+ */
+function setBackButtonVisible(visible) {
+  if (gameConfig?.backButton) {
+    visible ? gameConfig.backButton.show() : gameConfig.backButton.hide();
+  }
 }
 
+/**
+ * Set restart button visibility
+ * @param {boolean} visible - Show or hide
+ */
+function setRestartButtonVisible(visible) {
+  if (gameConfig?.restartButton) {
+    visible ? gameConfig.restartButton.show() : gameConfig.restartButton.hide();
+  }
+}
+
+/**
+ * Set pause button visibility
+ * @param {boolean} visible - Show or hide
+ */
+function setPauseButtonVisible(visible) {
+  if (gameConfig?.pauseButton) {
+    visible ? gameConfig.pauseButton.show() : gameConfig.pauseButton.hide();
+  }
+}
+
+/**
+ * Show pause overlay
+ */
 function showPauseOverlay() {
   if (!pauseOverlay) {
     pauseOverlay = document.createElement('div');
@@ -127,62 +96,22 @@ function showPauseOverlay() {
     if (container) container.appendChild(pauseOverlay);
   }
 }
+
+/**
+ * Hide pause overlay
+ */
 function hidePauseOverlay() {
   if (pauseOverlay) {
     pauseOverlay.remove();
     pauseOverlay = null;
   }
 }
-function togglePause() {
-  if (!gameActive || !gamePrepared) return;
-  gamePaused = !gamePaused;
-  if (gameConfig && gameConfig.pauseButton) gameConfig.pauseButton.toggle();
-  
-  if (gamePaused) {
-    showPauseOverlay();
-  } else {
-    hidePauseOverlay();
-    lastFrameTime = performance.now();
-  }
-}
 
-function restartGame() {
-  gameActive = false;
-  gamePrepared = false;
-  gamePaused = false;
-  if (animFrameId) cancelAnimationFrame(animFrameId);
-  hidePauseOverlay();
-  if (gameConfig && gameConfig.pauseButton) gameConfig.pauseButton.reset();
-
-  bubbles = [];
-  
-  // Reset bubble spawn config
-  BubbleSpawnConfig.resetSpawnState();
-
-  if (gameConfig && gameMode) {
-    prepareGame(gameConfig, gameMode);
-  }
-}
-
-function goToMainMenu() {
-  gameActive = false;
-  gamePrepared = false;
-  gamePaused = false;
-  if (animFrameId) cancelAnimationFrame(animFrameId);
-  hidePauseOverlay();
-  if (gameConfig && gameConfig.pauseButton) gameConfig.pauseButton.reset();
-
-  // Reset bubble spawn config
-  BubbleSpawnConfig.resetSpawnState();
-
-  if (gameConfig && gameConfig.canvasManager) gameConfig.canvasManager.hide();
-  setBackButtonVisible(false);
-  setRestartButtonVisible(false);
-  setPauseButtonVisible(false);
-
-  showModeSelection();
-}
-
+/**
+ * Start countdown before game begins
+ * @param {Object} config - Game configuration
+ * @returns {Promise} Resolves when countdown completes
+ */
 async function startCountdown(config) {
   const countdownValues = ['3', '2', '1', 'Pop!'];
   let countdownRunning = true;
@@ -201,398 +130,225 @@ async function startCountdown(config) {
 
   for (let i = 0; i < countdownValues.length; i++) {
     effects.spawn(new CountdownTextEffect(countdownValues[i], 500));
-    // eslint-disable-next-line no-await-in-loop
     await new Promise(r => setTimeout(r, 500));
   }
 
   countdownRunning = false;
-  actuallyStartGame();
 }
 
-function handleDifficultyIncrease(now) {
-  // ScreenFlashEffect logic removed
-  // if (!flashTriggered && now - lastDifficultyIncreaseTime > GAME_CONSTANTS.DIFFICULTY_INCREASE_INTERVAL - 2000) {
-  //   effects.spawn(new ScreenFlashEffect('yellow', 0.3));
-  //   flashTriggered = true;
-  // }
+/* ===========================================================================
+   MODE MANAGEMENT
+   ===========================================================================*/
 
-  if (now - lastDifficultyIncreaseTime > GAME_CONSTANTS.DIFFICULTY_INCREASE_INTERVAL) {
-    difficultyLevel += 1;
-    // flashTriggered = false; // flashTriggered logic removed
+/**
+ * Register a game mode implementation
+ * @param {string} key - Mode identifier (e.g., 'classic', 'survival')
+ * @param {Object} ModeClass - Mode class constructor
+ */
+function registerMode(key, ModeClass) {
+  MODE_REGISTRY[key] = ModeClass;
+}
 
-    let speedIncreaseAmount = 0.4;
-    let showMsg = true;
+/**
+ * Get registered mode class
+ * @param {string} key - Mode identifier
+ * @returns {Object|null} Mode class or null if not found
+ */
+function getMode(key) {
+  return MODE_REGISTRY[key] || null;
+}
 
-    if (lastIncreaseType === 'spawn') {
-      if (playerMissRate > GAME_CONSTANTS.MAX_ALLOWED_MISS_RATE) {
-        speedIncreaseAmount = 0.3;
-        // showDifficultyEaseUp(difficultyLevel); // Removed urgentMessage.js call
-        showMsg = false;
-      } else {
-        speedIncreaseAmount = 0.5;
-      }
-      bubbleSpeedMultiplier = Math.min(bubbleSpeedMultiplier + speedIncreaseAmount, GAME_CONSTANTS.MAX_SPEED_MULTIPLIER);
-      // if (showMsg) showFasterBubbles(difficultyLevel); // Removed urgentMessage.js call
-      // effects.spawn(new ScreenFlashEffect('lime', 0.4)); // ScreenFlashEffect removed
-      lastIncreaseType = 'speed';
-    } else {
-      if (playerMissRate > GAME_CONSTANTS.MAX_ALLOWED_MISS_RATE) {
-        bubbleSpawnInterval = Math.max(bubbleSpawnInterval * 0.85, GAME_CONSTANTS.MIN_SPAWN_INTERVAL);
-        // showDifficultyEaseUp(difficultyLevel); // Removed urgentMessage.js call
-        showMsg = false;
-      } else {
-        bubbleSpawnInterval = Math.max(bubbleSpawnInterval * 0.7, GAME_CONSTANTS.MIN_SPAWN_INTERVAL);
-      }
-      // effects.spawn(new ScreenFlashEffect('cyan', 0.4)); // ScreenFlashEffect removed
-      // if (showMsg) showMoreBubbles(difficultyLevel); // Removed urgentMessage.js call
-      lastIncreaseType = 'spawn';
+/**
+ * Initialize game mode instances
+ * Should be called once during app initialization
+ */
+function initializeModes() {
+  registerMode('classic', ClassicMode);
+  registerMode('survival', SurvivalMode);
+}
+
+/**
+ * Create and activate a game mode
+ * @param {string} modeKey - Mode identifier
+ * @param {Object} config - Game configuration object
+ * @returns {Object|null} Mode instance or null if failed
+ */
+function activateMode(modeKey, config) {
+  const ModeClass = getMode(modeKey);
+  
+  if (!ModeClass) {
+    console.error(`[game.js] Mode not found: ${modeKey}`);
+    return null;
+  }
+
+  // Deactivate previous mode if any
+  if (activeMode) {
+    try {
+      activeMode.cleanup?.();
+    } catch (err) {
+      console.error('[game.js] Error cleaning up previous mode:', err);
     }
+  }
 
-    lastDifficultyIncreaseTime = now;
-
-    if (difficultyLevel % 3 === 0) {
-      // showMaximumIntensity(); // Removed urgentMessage.js call
-      // effects.spawn(new ScreenFlashEffect('orange', 0.6)); // ScreenFlashEffect removed
-    }
+  // Create new mode instance
+  try {
+    activeMode = new ModeClass(config);
+    activeModeKey = modeKey;
+    return activeMode;
+  } catch (err) {
+    console.error(`[game.js] Error creating mode ${modeKey}:`, err);
+    return null;
   }
 }
 
-async function prepareGame(config, mode) {
+/* ===========================================================================
+   GAME CONTROL - Public API (Called by main.js)
+   ===========================================================================*/
+
+/**
+ * Prepare and start a game mode
+ * @param {Object} config - Game configuration object
+ * @param {string} modeKey - Mode identifier ('classic' or 'survival')
+ */
+async function startGame(config, modeKey) {
   gameConfig = config;
-  gameCanvas = config.canvasManager.element;
-  gameCtx = config.canvasManager.context;
-  gameMode = mode;
+  
+  const mode = activateMode(modeKey, config);
+  
+  if (!mode) {
+    showMessageBox(
+      'Error',
+      `Failed to load ${modeKey} mode. Please try again.`,
+      [{ label: 'OK', action: () => goToMainMenu() }]
+    );
+    return;
+  }
 
-  // Get spawn rate config for this mode
-  const spawnConfig = getSpawnRateConfig(mode);
+  try {
+    await mode.prepareGame();
+    
+    // Show countdown
+    await startCountdown(config);
+    
+    // Start the actual game
+    mode.startGame();
+  } catch (err) {
+    console.error('[game.js] Error starting game:', err);
+    showMessageBox(
+      'Error',
+      'Failed to start game. Please try again.',
+      [{ label: 'OK', action: () => goToMainMenu() }]
+    );
+  }
+}
 
-  // Reset gameplay state
-  bubbles = [];
-  consecutivePops = 0;
-  consecutiveNormalPops = 0;
-  // No freeze/frenzy variables to reset
-  bubbleSpeedMultiplier = 1;
-  lastDifficultyIncreaseTime = 0;
-  bubbleSpawnInterval = spawnConfig.initialInterval;
-  lastIncreaseType = 'spawn';
-  difficultyLevel = 1;
-  lastDifficultyEffectTime = 0;
-  // flashTriggered removed
-  // flashTriggered = false;
-  bubblesMissed = 0;
-  totalBubblesSpawned = 0;
-  playerMissRate = 0;
-  gamePaused = false;
+/**
+ * Handle canvas pointer down (tap/click)
+ * Delegates to active mode
+ * @param {number} x - X coordinate
+ * @param {number} y - Y coordinate
+ */
+function handleCanvasPointerDown(x, y) {
+  if (activeMode && typeof activeMode.handlePointerDown === 'function') {
+    activeMode.handlePointerDown(x, y);
+  }
+}
 
-  // Reset scoring
-  if (scoringService && typeof scoringService.reset === 'function') {
+/**
+ * Toggle pause state
+ * Delegates to active mode
+ */
+function togglePause() {
+  if (activeMode && typeof activeMode.pause === 'function') {
+    activeMode.pause();
+  }
+}
+
+/**
+ * Restart current game
+ * Delegates to active mode
+ */
+async function restartGame() {
+  if (activeMode && typeof activeMode.restart === 'function') {
+    await activeMode.restart();
+    
+    // After mode prepares, run countdown and start
+    await startCountdown(gameConfig);
+    activeMode.startGame();
+  }
+}
+
+/**
+ * Update UI displays
+ * Delegates to active mode
+ */
+function updateUI() {
+  if (activeMode && typeof activeMode.updateUI === 'function') {
+    activeMode.updateUI();
+  }
+}
+
+/**
+ * End current game
+ * Delegates to active mode
+ */
+function endGame() {
+  if (activeMode && typeof activeMode.endGame === 'function') {
+    activeMode.endGame();
+  }
+}
+
+/**
+ * Return to main menu
+ * Cleans up active mode and shows mode selection
+ */
+function goToMainMenu() {
+  // Cleanup active mode
+  if (activeMode) {
+    try {
+      activeMode.cleanup?.();
+    } catch (err) {
+      console.error('[game.js] Error during mode cleanup:', err);
+    }
+    activeMode = null;
+    activeModeKey = null;
+  }
+
+  // Hide canvas and reset UI
+  if (gameConfig?.canvasManager) {
+    gameConfig.canvasManager.hide();
+  }
+  
+  setBackButtonVisible(false);
+  setRestartButtonVisible(false);
+  setPauseButtonVisible(false);
+  hidePauseOverlay();
+
+  // Reset global systems
+  if (gameConfig?.pauseButton) {
+    gameConfig.pauseButton.reset();
+  }
+  
+  BubbleSpawnConfig.resetSpawnState();
+  
+  if (scoringService?.reset) {
     scoringService.reset();
   }
-  
-  // Reset bubble spawn config
-  BubbleSpawnConfig.resetSpawnState();
 
-  if (gameConfig && gameConfig.pauseButton) gameConfig.pauseButton.reset();
-  hidePauseOverlay();
-
-  if (gameMode === 'classic') {
-    classicTimeLeft = 60;
-  } else {
-    survivalTimeLeft = 60;
-  }
-
-  updateUI();
-  config.gameInfo.style.display = 'flex';
-  config.modeDisplay.textContent = gameMode === 'classic' ? 'Classic Mode' : 'Survival Mode';
-
-  await config.canvasManager.showWithAnimation();
-  setBackButtonVisible(true);
-  setPauseButtonVisible(true);
-  setRestartButtonVisible(true);
-  startCountdown(config);
-
-  gamePrepared = true;
+  // Show mode selection
+  showModeSelection();
 }
 
-function actuallyStartGame() {
-  if (!gamePrepared) {
-    console.warn('Game not prepared. Call prepareGame first.');
-    return;
-  }
-
-  if (gameMode === 'classic') {
-    classicStartTime = performance.now();
-  }
-
-  // Only start difficulty increase in survival mode
-  if (gameMode === 'survival') {
-    lastDifficultyIncreaseTime = performance.now();
-  }
-
-  gameActive = true;
-  gamePaused = false;
-  lastFrameTime = performance.now();
-  if (animFrameId) cancelAnimationFrame(animFrameId);
-  animFrameId = requestAnimationFrame(gameLoop);
-}
-
-async function startGame(config, mode) {
-  await prepareGame(config, mode);
-}
-
-function gameLoop(now) {
-  animFrameId = requestAnimationFrame(gameLoop);
-
-  if (gamePaused) {
-    gameConfig.canvasManager.clear();
-    for (let i = bubbles.length - 1; i >= 0; i--) {
-      bubbles[i].draw(gameCtx, now);
-    }
-    effects.draw(gameCtx);
-    return;
-  }
-
-  const deltaTime = (now - lastFrameTime) / 1000;
-  lastFrameTime = now;
-
-  if (!gameActive) return;
-
-  // ---------------------------
-  // NORMAL GAME LOOP
-  // ---------------------------
-  
-  // Get spawn rate config
-  const spawnConfig = getSpawnRateConfig(gameMode);
-  
-  if (gameMode === 'classic') {
-    // In classic mode, timer decreases normally
-    classicTimeLeft -= deltaTime;
-    if (classicTimeLeft <= 0) {
-      classicTimeLeft = 0;
-      endGame();
-    }
-  } else {
-    // Survival mode logic
-    survivalTimeLeft -= deltaTime;
-    if (survivalTimeLeft <= 0) {
-      survivalTimeLeft = 0;
-      endGame();
-    }
-
-    if (totalBubblesSpawned > 0) {
-      playerMissRate = bubblesMissed / totalBubblesSpawned;
-    }
-
-    handleDifficultyIncrease(now);
-  }
-
-  const activeBubbles = bubbles.filter(b => !b.popped).length;
-
-  // Build game state for spawn config
-  const gameState = {
-    currentTime: now,
-    consecutivePops: consecutivePops,
-    isFreezeModeActive: false // Always false now after freeze mode removal
-  };
-
-  if (activeBubbles < spawnConfig.minBubbles) {
-    const spawned = spawnBubble(now, gameCanvas, bubbles, gameMode, null, bubbleSpeedMultiplier, 0, gameState);
-    if (spawned) totalBubblesSpawned += 1;
-  } else if (activeBubbles < spawnConfig.maxBubbles) {
-    const spawned = spawnBubble(now, gameCanvas, bubbles, gameMode, null, bubbleSpeedMultiplier, bubbleSpawnInterval, gameState);
-    if (spawned) totalBubblesSpawned += 1;
-  }
-
-  gameConfig.canvasManager.clear();
-
-  for (let i = bubbles.length - 1; i >= 0; i--) {
-    const bubble = bubbles[i];
-    const missed = bubble.update(
-      deltaTime,
-      now,
-      gameMode,
-      false, // isFreezeModeActive is always false
-      noOp, // REPLACED: showUrgentMessage with noOp
-      endGame,
-      gameCanvas
-    );
-
-    if (missed) {
-      if (gameMode === 'survival') {
-        survivalTimeLeft -= GAME_CONSTANTS.TIME_PENALTY_PER_MISS;
-        effects.spawn(new FloatingTextEffect(gameCanvas.width / 2, 50, '-2s', '#ff5555'));
-        bubblesMissed += 1;
-        consecutivePops = 0;
-        consecutiveNormalPops = 0;
-        
-        // Notify spawn config of missed bubble
-        BubbleSpawnConfig.notifyBubbleMissed();
-      }
-    }
-
-    if (bubble.dead) {
-      bubbles.splice(i, 1);
-    }
-  }
-
-  for (let i = 0; i < bubbles.length; i++) {
-    if (bubbles[i].popped) continue;
-    for (let j = i + 1; j < bubbles.length; j++) {
-      if (bubbles[j].popped) continue;
-      handleBubbleCollision(bubbles[i], bubbles[j]);
-    }
-  }
-
-  for (let i = 0; i < bubbles.length; i++) {
-    bubbles[i].draw(gameCtx, now);
-  }
-
-  effects.update(deltaTime, now);
-  effects.draw(gameCtx);
-
-  updateUI();
-}
-
-function handleCanvasPointerDown(x, y) {
-  if (!gameActive || gamePaused) return;
-
-  let poppedAny = false;
-
-  for (let i = bubbles.length - 1; i >= 0; i--) {
-    const bubble = bubbles[i];
-    const dx = x - bubble.x;
-    const dy = y - bubble.y;
-    const distance = Math.sqrt(dx * dx + dy * dy);
-
-    if (distance <= bubble.radius) {
-      
-      // Handle freeze bubbles (removed)
-      if (bubble.type === 'freeze') {
-        console.warn('Freeze bubble popped, but mechanic is removed. Ignoring pop.');
-        bubble.popped = true;
-        poppedAny = true;
-        consecutivePops = 0;
-        consecutiveNormalPops = 0;
-        BubbleSpawnConfig.notifyBubblePopped('freeze', false);
-        break;
-      }
-      
-      // Handle decoy bubbles
-      if (bubble.type === 'decoy') {
-        const res = scoringService.handleBubblePop('decoy');
-        
-        if (gameMode === 'survival') {
-          survivalTimeLeft -= GAME_CONSTANTS.TIME_PENALTY_PER_DECOY;
-          effects.spawn(new FloatingTextEffect(gameCanvas.width / 2, 50, '-5s', '#ff5555'));
-        }
-        
-        // effects.spawn(new ScreenFlashEffect('red')); // ScreenFlashEffect removed
-        // showOuchPenalty(); // Removed urgentMessage.js call
-        spawnPointsText(res.pointsEarned, bubble.x, bubble.y, '#ff7777');
-
-        bubble.popped = true;
-        poppedAny = true;
-        consecutivePops = 0;
-        consecutiveNormalPops = 0;
-        
-        // Notify spawn config (decoy is not a successful pop)
-        BubbleSpawnConfig.notifyBubblePopped('decoy', false);
-        
-        break;
-      }
-      
-      // BOMB BUBBLE LOGIC WAS REMOVED HERE
-      
-      // Handle normal and double bubbles
-      if (bubble.pop(performance.now())) {
-        const res = scoringService.handleBubblePop(bubble.type);
-        spawnPointsText(res.pointsEarned, bubble.x, bubble.y, bubble.color || '#ffffff');
-        poppedAny = true;
-
-        if (gameMode === 'survival') {
-          if (bubble.type === 'normal') {
-            consecutiveNormalPops += 1;
-            if (consecutiveNormalPops % 2 === 0) {
-              survivalTimeLeft += 1;
-              effects.spawn(new FloatingTextEffect(gameCanvas.width / 2, 50, '+1s', bubble.color));
-            }
-          } else if (bubble.type === 'double') {
-            survivalTimeLeft += GAME_CONSTANTS.TIME_BONUS_PER_DOUBLE_TAP;
-            effects.spawn(new FloatingTextEffect(gameCanvas.width / 2, 50, '+1s', bubble.initialColor || '#ffffff'));
-            consecutiveNormalPops = 0;
-            // showDoublePop(); // Removed urgentMessage.js call
-          } else {
-            consecutiveNormalPops = 0;
-          }
-          survivalTimeLeft = Math.min(survivalTimeLeft, 90);
-        }
-
-        consecutivePops += 1;
-        
-        // Notify spawn config of successful pop
-        BubbleSpawnConfig.notifyBubblePopped(bubble.type, true);
-
-        if ('vibrate' in navigator) {
-          navigator.vibrate(50);
-        }
-
-        break;
-      }
-    }
-  }
-
-  if (!poppedAny) {
-    consecutivePops = 0;
-    consecutiveNormalPops = 0;
-    BubbleSpawnConfig.notifyBubbleMissed();
-  }
-}
-
-function updateUI() {
-  const stats = scoringService.getCurrentStats();
-  const totalScore = (stats && typeof stats.totalScore === 'number') ? stats.totalScore : 0;
-
-  gameConfig.scoreDisplay.textContent = 'Score: ' + String(totalScore);
-
-  if (gameMode === 'classic') {
-    gameConfig.classicTimerDisplay.textContent = 'Time: ' + String(Math.floor(classicTimeLeft)) + 's';
-    gameConfig.classicTimerDisplay.style.display = 'inline';
-    gameConfig.survivalStatsDisplay.style.display = 'none';
-  } else {
-    gameConfig.survivalStatsDisplay.style.display = 'inline';
-    gameConfig.survivalTimeElapsedDisplay.textContent = 'Time: ' + String(Math.floor(survivalTimeLeft)) + 's';
-    gameConfig.survivalMissesDisplay.style.display = 'none';
-  }
-}
-
-function endGame() {
-  gameActive = false;
-  gamePrepared = false;
-  gamePaused = false;
-  if (animFrameId) cancelAnimationFrame(animFrameId);
-  if (gameConfig && gameConfig.canvasManager) gameConfig.canvasManager.hide();
-  setBackButtonVisible(false);
-  setPauseButtonVisible(false);
-  setRestartButtonVisible(false);
-  hidePauseOverlay();
-  if (gameConfig && gameConfig.pauseButton) gameConfig.pauseButton.reset();
-  
-  // Reset bubble spawn config
-  BubbleSpawnConfig.resetSpawnState();
-
-  const stats = scoringService.getCurrentStats();
-  const totalScore = (stats && typeof stats.totalScore === 'number') ? stats.totalScore : 0;
-
-  showMessageBox(
-    "Time's Up!",
-    'Your final score is: ' + String(totalScore) + ' points',
-    [{ label: 'Go to Main Menu', action: () => goToMainMenu() }]
-  );
-}
-
+/**
+ * Show mode selection menu
+ */
 async function showModeSelection() {
   await hideMessageBox();
-  gameConfig.gameInfo.style.display = 'none';
+  
+  if (gameConfig?.gameInfo) {
+    gameConfig.gameInfo.style.display = 'none';
+  }
+  
   setBackButtonVisible(false);
   setPauseButtonVisible(false);
   setRestartButtonVisible(false);
@@ -601,21 +357,54 @@ async function showModeSelection() {
     'Select Mode',
     'Choose your game mode:',
     [
-      { label: 'Classic Mode', action: async () => { await hideMessageBox(); startGame(gameConfig, 'classic'); } },
-      { label: 'Survival Mode', action: async () => { await hideMessageBox(); startGame(gameConfig, 'survival'); } }
+      { 
+        label: 'Classic Mode', 
+        action: async () => { 
+          await hideMessageBox(); 
+          startGame(gameConfig, 'classic'); 
+        } 
+      },
+      { 
+        label: 'Survival Mode', 
+        action: async () => { 
+          await hideMessageBox(); 
+          startGame(gameConfig, 'survival'); 
+        } 
+      }
     ]
   );
 }
 
+/* ===========================================================================
+   EXPORTS
+   ===========================================================================*/
+
 export {
+  // Core game control
   startGame,
-  prepareGame,
-  actuallyStartGame,
-  gameLoop,
   handleCanvasPointerDown,
-  endGame,
-  updateUI,
-  goToMainMenu,
+  togglePause,
   restartGame,
-  togglePause
+  updateUI,
+  endGame,
+  goToMainMenu,
+  
+  // Mode management
+  registerMode,
+  getMode,
+  initializeModes,
+  showModeSelection,
+  
+  // Shared utilities (already exported inline above)
+  spawnPointsText,
+  setBackButtonVisible,
+  setRestartButtonVisible,
+  setPauseButtonVisible,
+  showPauseOverlay,
+  hidePauseOverlay,
+  
+  // Shared systems (re-export for modes)
+  effects,
+  scoringService,
+  BubbleSpawnConfig
 };

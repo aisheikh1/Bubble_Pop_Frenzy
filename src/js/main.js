@@ -1,6 +1,14 @@
 // src/js/main.js
 
-import { startGame, handleCanvasPointerDown, updateUI, goToMainMenu, restartGame, togglePause } from './game.js';
+import { 
+  startGame, 
+  handleCanvasPointerDown, 
+  updateUI, 
+  goToMainMenu, 
+  restartGame, 
+  togglePause,
+  initializeModes 
+} from './game.js';
 import { showMessageBox, hideMessageBox } from './ui/messageBox.js';
 import { CanvasManager } from './canvasManager.js';
 import { initializeAnimatedTitle, preloadTitleAnimations } from './gametitlemanagement/index.js';
@@ -349,6 +357,9 @@ window.addEventListener('load', () => {
   // Suppressed: console.log('[main.js] Initializing Bubble Pop Frenzy...');
   // Suppressed: console.log('[main.js] Version: 2.0.0 (with BubbleSpawnConfig)');
   
+  // Initialize game modes - CRITICAL: Must be called before any game starts
+  initializeModes();
+  
   // Preload title animations
   preloadTitleAnimations();
 
@@ -505,7 +516,6 @@ window.addEventListener('load', () => {
       getFrenzyConfig: (mode) => getFrenzyConfig(mode),
       isFrenzyEnabled: (mode) => isFrenzyEnabled(mode),
       validateFrenzyConfig: (config) => validateFrenzyConfig(config),
-      getModeRegistry: () => MODE_REGISTRY,
       getGlobalConfig: () => GAME_CONFIG,
       
       // New BubbleSpawnConfig debug helpers
@@ -521,7 +531,6 @@ window.addEventListener('load', () => {
         // Suppressed: console.log('=== Frenzy Configuration Test ===');
         // Suppressed: console.log('Classic:', getFrenzyConfig('classic'));
         // Suppressed: console.log('Survival:', getFrenzyConfig('survival'));
-        // Suppressed: console.log('Mode Registry:', MODE_REGISTRY);
       },
       
       // Test spawn distribution
