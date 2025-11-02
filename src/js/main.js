@@ -98,7 +98,9 @@ async function showMainMenu(gameConfig) {
         label: 'Colour Rush', 
         action: async () => { 
           console.log('[main.js] Starting Colour Rush Mode');
-          await hideMessageBox(); 
+          await hideMessageBox();
+          gameConfig.gameInfo.style.display = 'flex';
+          await gameConfig.canvasManager.showWithAnimation();
           startGame(gameConfig, 'colourrush'); 
         } 
       }
