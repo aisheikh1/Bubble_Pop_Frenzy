@@ -27,7 +27,7 @@ if (effects && typeof effects.add !== 'function' && typeof effects.spawn === 'fu
 const MODE_REGISTRY = {
   classic: null,
   survival: null,
-  colourrush: null  // ✅ FIX 1: Added colourrush to registry
+  colourrush: null
 };
 
 let activeMode = null;
@@ -167,7 +167,7 @@ function getMode(key) {
 function initializeModes() {
   registerMode('classic', ClassicMode);
   registerMode('survival', SurvivalMode);
-  registerMode('colourrush', ColourRushMode);  // ✅ FIX 2: Register ColourRushMode
+  registerMode('colourrush', ColourRushMode);
   
   console.log('[game.js] Registered modes:', Object.keys(MODE_REGISTRY));
 }
@@ -378,7 +378,7 @@ async function showModeSelection() {
         } 
       },
       { 
-        label: 'Colour Rush',  // ✅ FIX 3: Added Colour Rush button
+        label: 'Colour Rush',
         action: async () => { 
           await hideMessageBox(); 
           startGame(gameConfig, 'colourrush'); 

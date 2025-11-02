@@ -1,16 +1,10 @@
 // src/js/ui/BackButton.js
 export class BackButton {
   /**
-   * @param {HTMLElement} gameContainer  The .game-container element
-   * @param {HTMLCanvasElement} canvasEl  The game canvas element
+   * @param {HTMLElement} belowCanvas  The .below-canvas element (shared container)
    */
-  constructor(gameContainer, canvasEl) {
-    this.container = gameContainer;
-    this.canvas = canvasEl;
-
-    // Create the flexible "below-canvas" area
-    this.below = document.createElement('div');
-    this.below.className = 'below-canvas';
+  constructor(belowCanvas) {
+    this.belowCanvas = belowCanvas;
 
     // Create the button itself
     this.button = document.createElement('button');
@@ -21,22 +15,45 @@ export class BackButton {
               stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>
     `;
+    this.button.setAttribute('aria-label', 'Back to menu');
 
-    // Insert after the canvas (so it is "under" the canvas)
-    this.container.insertBefore(this.below, this.canvas.nextSibling);
-    this.below.appendChild(this.button);
+    // Append to the below-canvas container
+    this.belowCanvas.appendChild(this.button);
 
     // Default no-op
     this._handler = () => {};
-    this.button.addEventListener('pointerdown', () => this._handler()),
-    this.button.addEventListener('click', () => this._handler()); //fallback
-
+    
+    // Handle button clicks
+    this.button.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      this._handler();
+    });
+    
+    this.button.addEventListener('click', (e) => {
+      e.preventDefault();
+      this._handler();
+    });
   }
 
+  /**
+   * Set click handler
+   * @param {Function} handler
+   */
   onClick(handler) {
     this._handler = typeof handler === 'function' ? handler : () => {};
   }
 
-  show()  { this.button.classList.remove('hidden'); }
-  hide()  { this.button.classList.add('hidden');  }
+  /**
+   * Show the button
+   */
+  show() {
+    this.button.classList.remove('hidden');
+  }
+
+  /**
+   * Hide the button
+   */
+  hide() {
+    this.button.classList.add('hidden');
+  }
 }

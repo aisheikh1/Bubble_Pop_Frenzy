@@ -1,7 +1,7 @@
 // src/js/ui/RestartButton.js
 export class RestartButton {
   /**
-   * @param {HTMLElement} belowCanvas  The .below-canvas element (shared with BackButton)
+   * @param {HTMLElement} belowCanvas  The .below-canvas element (shared container)
    */
   constructor(belowCanvas) {
     this.belowCanvas = belowCanvas;
@@ -18,20 +18,45 @@ export class RestartButton {
               stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>
     `;
+    this.button.setAttribute('aria-label', 'Restart game');
 
     // Append to the below-canvas container
     this.belowCanvas.appendChild(this.button);
 
     // Default no-op
     this._handler = () => {};
-    this.button.addEventListener('pointerdown', () => this._handler());
-    this.button.addEventListener('click', () => this._handler()); // fallback
+    
+    // Handle button clicks
+    this.button.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      this._handler();
+    });
+    
+    this.button.addEventListener('click', (e) => {
+      e.preventDefault();
+      this._handler();
+    });
   }
 
+  /**
+   * Set click handler
+   * @param {Function} handler
+   */
   onClick(handler) {
     this._handler = typeof handler === 'function' ? handler : () => {};
   }
 
-  show() { this.button.classList.remove('hidden'); }
-  hide() { this.button.classList.add('hidden'); }
+  /**
+   * Show the button
+   */
+  show() {
+    this.button.classList.remove('hidden');
+  }
+
+  /**
+   * Hide the button
+   */
+  hide() {
+    this.button.classList.add('hidden');
+  }
 }

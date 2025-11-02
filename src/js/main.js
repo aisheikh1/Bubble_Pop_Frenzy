@@ -9,7 +9,9 @@ import {
   handleCanvasPointerDown,
   initializeModes,
   showModeSelection,
-  goToMainMenu
+  goToMainMenu,
+  togglePause,
+  restartGame
 } from './game.js';
 import { BubbleSpawnConfig } from './BubbleSpawnConfig.js';
 import { PauseButton } from './ui/PauseButton.js';
@@ -153,35 +155,12 @@ window.addEventListener('load', () => {
     console.log('[main.js] Step 5: Setting up control buttons...');
     const belowCanvasArea = document.querySelector('.below-canvas');
     
-    const backButton = new BackButton(belowCanvasArea, () => {
-      console.log('[main.js] Back button clicked');
-      goToMainMenu();
-    });
+    // Create button instances
+    const backButton = new BackButton(belowCanvasArea);
+    const pauseButton = new PauseButton(belowCanvasArea);
+    const restartButton = new RestartButton(belowCanvasArea);
     
-    const pauseButton = new PauseButton(belowCanvasArea, (isPaused) => {
-      console.log('[main.js] Pause button toggled:', isPaused ? 'PAUSED' : 'RESUMED');
-      // The game.js togglePause() will be called by the button internally
-    });
-    
-    const restartButton = new RestartButton(belowCanvasArea, () => {
-      console.log('[main.js] Restart button clicked');
-      // The game.js restartGame() will be called by the button internally
-    });
-    
-    // Step 6: Setup pointer events
-    console.log('[main.js] Step 6: Setting up pointer events...');
-    canvas.addEventListener('pointerdown', (event) => {
-      const rect = canvas.getBoundingClientRect();
-      const scaleX = canvas.width / rect.width;
-      const scaleY = canvas.height / rect.height;
-      const x = (event.clientX - rect.left) * scaleX;
-      const y = (event.clientY - rect.top) * scaleY;
-      
-      handleCanvasPointerDown(x, y);
-    });
-    
-    // Step 7: Build game configuration object
-    console.log('[main.js] Step 7: Building game configuration...');
+    // Build game configuration object (needed for button handlers)
     const gameConfig = {
       // Canvas
       canvas,
@@ -206,9 +185,43 @@ window.addEventListener('load', () => {
       colourRushConfig: COLOUR_RUSH_CONFIG
     };
     
-    // Step 8: Show main menu
-    console.log('[main.js] Step 8: Showing main menu...');
+    // Set up button handlers (AFTER gameConfig is created)
+    backButton.onClick(() => {
+      console.log('[main.js] Back button clicked');
+      goToMainMenu();
+    });
+    
+    pauseButton.onClick(() => {
+      console.log('[main.js] Pause button clicked');
+      pauseButton.toggle();
+      togglePause();
+    });
+    
+    restartButton.onClick(async () => {
+      console.log('[main.js] Restart button clicked');
+      await restartGame();
+    });
+    
+    // Step 6: Setup pointer events
+    console.log('[main.js] Step 6: Setting up pointer events...');
+    canvas.addEventListener('pointerdown', (event) => {
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = canvas.width / rect.width;
+      const scaleY = canvas.height / rect.height;
+      const x = (event.clientX - rect.left) * scaleX;
+      const y = (event.clientY - rect.top) * scaleY;
+      
+      handleCanvasPointerDown(x, y);
+    });
+    
+    // Step 7: Show main menu
+    console.log('[main.js] Step 7: Showing main menu...');
     showMainMenu(gameConfig);
+    
+    // Store gameConfig for debug utilities
+    if (window.bubblePopDebug) {
+      window.bubblePopDebug._gameConfig = gameConfig;
+    }
     
     console.log('[main.js] ========================================');
     console.log('[main.js] ✅ Initialization complete!');
@@ -280,11 +293,8 @@ if (typeof window !== 'undefined') {
       return BubbleSpawnConfig.getAvailableBubbleTypes(mode);
     },
     
-  // (No dedicated frenzy mode toggle in this project)
-    
     // Mode registry inspection
     getRegisteredModes: () => {
-      // This will only work if game.js exports the registry
       console.log('Registered modes: classic, survival, colourrush');
       console.log('Use startGame(config, "modename") to start a mode');
     },
@@ -332,8 +342,6 @@ if (typeof window !== 'undefined') {
       console.log('BUBBLE POP FRENZY - DEBUG COMMANDS');
       console.log('========================================');
       console.log('Configuration:');
-      console.log('  getClassicConfig()       - View Classic mode config');
-      console.log('  getSurvivalConfig()      - View Survival mode config');
       console.log('  getColourRushConfig()    - View Colour Rush config');
       console.log('');
       console.log('Validation:');
@@ -352,32 +360,9 @@ if (typeof window !== 'undefined') {
     }
   };
   
-  // Store gameConfig reference after initialization
-  const originalLoad = window.onload;
-  window.addEventListener('load', () => {
-    setTimeout(() => {
-      // Attempt to capture gameConfig from the closure
-      // This is a bit hacky but useful for debugging
-      console.log('[main.js] Debug helpers ready - type bubblePopDebug.help() for commands');
-    }, 1000);
-  });
-  
   console.log('[main.js] Debug utilities loaded - access via: window.bubblePopDebug');
   console.log('[main.js] Type bubblePopDebug.help() for available commands');
 }
-
-/* ===========================================================================
-   FEATURE FLAGS / HELPERS
-   ===========================================================================*/
-
-/**
- * Determine if "frenzy" features are enabled for a given mode.
- * Falls back to true if a mode-specific config isn't present.
- * @param {'classic'|'survival'|'colourrush'} mode
- * @returns {boolean}
- */
-// No global frenzy mode enable/disable in this project. Classic and Survival
-// manage their own behavior internally; Colour Rush is configured via COLOUR_RUSH_CONFIG.
 
 /* ===========================================================================
    EXPORTS (if using modules in other files)

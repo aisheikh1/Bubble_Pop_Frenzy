@@ -1,7 +1,7 @@
 // src/js/ui/PauseButton.js
 export class PauseButton {
   /**
-   * @param {HTMLElement} belowCanvas  The .below-canvas element (shared with BackButton and RestartButton)
+   * @param {HTMLElement} belowCanvas  The .below-canvas element (shared container)
    */
   constructor(belowCanvas) {
     this.belowCanvas = belowCanvas;
@@ -10,7 +10,6 @@ export class PauseButton {
     // Create the button itself
     this.button = document.createElement('button');
     this.button.className = 'pause-btn hidden';
-    this.button.setAttribute('aria-label', 'Pause game');
     
     // Set initial pause icon
     this._updateIcon();
@@ -27,10 +26,10 @@ export class PauseButton {
       this._handler();
     });
     
-    //this.button.addEventListener('click', (e) => {
-    //  e.preventDefault();
-    //  this._handler();
-    //});
+    this.button.addEventListener('click', (e) => {
+      e.preventDefault();
+      this._handler();
+    });
   }
 
   /**
