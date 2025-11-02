@@ -169,6 +169,24 @@ class Bubble {
       return false;
     }
   }
+  
+  /**
+   * Get the color of this bubble
+   * @returns {string} Hex color string
+   */
+  getColor() {
+    return this.color;
+  }
+  
+  /**
+   * Set the color of this bubble
+   * Useful for dynamic color changes
+   * @param {string} color - Hex color string
+   */
+  setColor(color) {
+    this.color = color;
+    this.initialColor = color;
+  }
 }
 
 /**
@@ -242,7 +260,8 @@ function handleBubbleCollision(bubble1, bubble2) {
 /**
  * Spawns a new bubble at a random location on the canvas with increased speed.
  * Now uses BubbleSpawnConfig for type determination.
- * * @param {number} now - Current timestamp.
+ * 
+ * @param {number} now - Current timestamp.
  * @param {HTMLCanvasElement} canvas - The game canvas.
  * @param {Array<Bubble>} bubbles - The array to add the new bubble to.
  * @param {string} gameMode - The current game mode.
@@ -250,15 +269,18 @@ function handleBubbleCollision(bubble1, bubble2) {
  * @param {number} speedMultiplier - Multiplier to increase bubble speed.
  * @param {number} spawnInterval - The interval between spawns.
  * @param {Object} gameState - Current game state for spawn config
+ * @param {string} specificColor - Optional specific color for the bubble (for Colour Rush)
  * @returns {boolean} True if a bubble was spawned, false otherwise.
  */
 let lastSpawnTime = 0;
-function spawnBubble(now, canvas, bubbles, gameMode, type = null, speedMultiplier = 1, spawnInterval = 1000, gameState = {}) {
+function spawnBubble(now, canvas, bubbles, gameMode, type = null, speedMultiplier = 1, spawnInterval = 1000, gameState = {}, specificColor = null) {
     if (now - lastSpawnTime > spawnInterval) {
         const radius = Math.random() * (40 - 20) + 20;
         const x = Math.random() * (canvas.width - radius * 2) + radius;
         const y = Math.random() * (canvas.height - radius * 2) + radius;
-        const color = getRandomColor();
+        
+        // Use specific color if provided (for Colour Rush), otherwise use random color
+        const color = specificColor || getRandomColor();
         
         // Increased base speed from 0.5 to 1.5 (3x faster)
         const baseSpeed = 1.5;
@@ -285,13 +307,78 @@ function spawnBubble(now, canvas, bubbles, gameMode, type = null, speedMultiplie
 }
 
 // ============================================================================
+// COLOR MATCHING UTILITIES (for Colour Rush mode)
+// ============================================================================
+
+/**
+ * Calculate Euclidean distance between two RGB colors
+ * @param {string} hex1 - First color in hex format
+ * @param {string} hex2 - Second color in hex format
+ * @returns {number} Distance between colors (0-441)
+ */
+function calculateColorDistance(hex1, hex2) {
+  const rgb1 = hexToRgb(hex1);
+  const rgb2 = hexToRgb(hex2);
+  
+  const dr = rgb1.r - rgb2.r;
+  const dg = rgb1.g - rgb2.g;
+  const db = rgb1.b - rgb2.b;
+  
+  return Math.sqrt(dr * dr + dg * dg + db * db);
+}
+
+/**
+ * Convert hex color to RGB object
+ * @param {string} hex - Hex color string (e.g., "#FF0000")
+ * @returns {Object} RGB object with r, g, b properties
+ */
+function hexToRgb(hex) {
+  // Remove # if present
+  const cleanHex = hex.startsWith('#') ? hex.slice(1) : hex;
+  
+  const r = parseInt(cleanHex.slice(0, 2), 16);
+  const g = parseInt(cleanHex.slice(2, 4), 16);
+  const b = parseInt(cleanHex.slice(4, 6), 16);
+  
+  return { r, g, b };
+}
+
+/**
+ * Check if two colors match within tolerance
+ * @param {string} color1 - First color in hex format
+ * @param {string} color2 - Second color in hex format
+ * @param {number} tolerance - Maximum distance to consider a match (default: 30)
+ * @returns {boolean} True if colors match
+ */
+function isColorMatch(color1, color2, tolerance = 30) {
+  const distance = calculateColorDistance(color1, color2);
+  return distance <= tolerance;
+}
+
+/**
+ * Get bubbles of a specific color
+ * @param {Array<Bubble>} bubbles - Array of bubbles
+ * @param {string} targetColor - Target color in hex format
+ * @param {number} tolerance - Color match tolerance
+ * @param {boolean} activeOnly - Only return active bubbles
+ * @returns {Array<Bubble>} Bubbles matching the color
+ */
+function getBubblesByColor(bubbles, targetColor, tolerance = 30, activeOnly = true) {
+  return bubbles.filter(b => {
+    if (activeOnly && (b.popped || b.dead)) return false;
+    return isColorMatch(b.color, targetColor, tolerance);
+  });
+}
+
+// ============================================================================
 // UTILITY FUNCTIONS - For frenzy mode and advanced bubble management
 // ============================================================================
 
 /**
  * Spawn multiple bubbles instantly without timing constraints
  * Used by frenzy mode to fill the canvas quickly
- * * @param {number} count - Number of bubbles to spawn
+ * 
+ * @param {number} count - Number of bubbles to spawn
  * @param {HTMLCanvasElement} canvas - The game canvas
  * @param {Array<Bubble>} bubbles - Existing bubbles array
  * @param {string} type - Bubble type to spawn (default: 'normal')
@@ -303,6 +390,7 @@ function spawnBubble(now, canvas, bubbles, gameMode, type = null, speedMultiplie
  * @param {number} options.maxSpeed - Maximum initial speed (default: 0.8)
  * @param {number} options.minSpacing - Minimum spacing between bubbles (default: 10)
  * @param {number} options.maxAttempts - Max spawn attempts per bubble (default: 50)
+ * @param {string} options.color - Optional specific color for all bubbles
  * @returns {Array<Bubble>} Array of newly spawned bubbles
  */
 function spawnMultipleBubbles(count, canvas, bubbles, type = 'normal', now, options = {}) {
@@ -312,7 +400,8 @@ function spawnMultipleBubbles(count, canvas, bubbles, type = 'normal', now, opti
     minSpeed = 0.3,
     maxSpeed = 0.8,
     minSpacing = 10,
-    maxAttempts = 50
+    maxAttempts = 50,
+    color = null
   } = options;
 
   const spawned = [];
@@ -345,8 +434,8 @@ function spawnMultipleBubbles(count, canvas, bubbles, type = 'normal', now, opti
     const speedX = Math.cos(angle) * speed;
     const speedY = Math.sin(angle) * speed;
     
-    const color = getRandomColor();
-    const newBubble = new Bubble(x, y, radius, color, speedX, speedY, type, now);
+    const bubbleColor = color || getRandomColor();
+    const newBubble = new Bubble(x, y, radius, bubbleColor, speedX, speedY, type, now);
     
     bubbles.push(newBubble);
     spawned.push(newBubble);
@@ -359,7 +448,8 @@ function spawnMultipleBubbles(count, canvas, bubbles, type = 'normal', now, opti
 /**
  * Check if a position is valid for spawning a bubble
  * Ensures no overlap with existing bubbles and stays within canvas bounds
- * * @param {number} x - X coordinate
+ * 
+ * @param {number} x - X coordinate
  * @param {number} y - Y coordinate
  * @param {number} radius - Bubble radius
  * @param {Array<Bubble>} bubbles - Existing bubbles
@@ -390,7 +480,8 @@ function isPositionValid(x, y, radius, bubbles, spacing = 10) {
 
 /**
  * Get count of active (not popped, not dead) bubbles
- * * @param {Array<Bubble>} bubbles - Bubbles array
+ * 
+ * @param {Array<Bubble>} bubbles - Bubbles array
  * @returns {number} Count of active bubbles
  */
 function getActiveBubbleCount(bubbles) {
@@ -399,7 +490,8 @@ function getActiveBubbleCount(bubbles) {
 
 /**
  * Get count of bubbles by type
- * * @param {Array<Bubble>} bubbles - Bubbles array
+ * 
+ * @param {Array<Bubble>} bubbles - Bubbles array
  * @param {string} type - Bubble type ('normal', 'double', 'decoy')
  * @param {boolean} activeOnly - Only count active bubbles (default: true)
  * @returns {number} Count of matching bubbles
@@ -414,7 +506,8 @@ function getBubbleCountByType(bubbles, type, activeOnly = true) {
 /**
  * Clear all bubbles of a specific type
  * Useful for power-ups or special events
- * * @param {Array<Bubble>} bubbles - Bubbles array (modified in place)
+ * 
+ * @param {Array<Bubble>} bubbles - Bubbles array (modified in place)
  * @param {string} type - Bubble type to clear (or 'all' for all bubbles)
  * @returns {number} Number of bubbles cleared
  */
@@ -437,7 +530,8 @@ function clearBubblesByType(bubbles, type = 'all') {
 /**
  * Get all bubbles within a radius of a point
  * Useful for area-of-effect mechanics
- * * @param {Array<Bubble>} bubbles - Bubbles array
+ * 
+ * @param {Array<Bubble>} bubbles - Bubbles array
  * @param {number} x - Center X coordinate
  * @param {number} y - Center Y coordinate
  * @param {number} radius - Search radius
@@ -459,7 +553,8 @@ function getBubblesInRadius(bubbles, x, y, radius, activeOnly = true) {
 /**
  * Set velocity for all bubbles (or specific types)
  * Useful for freeze effects or speed changes
- * * @param {Array<Bubble>} bubbles - Bubbles array
+ * 
+ * @param {Array<Bubble>} bubbles - Bubbles array
  * @param {number} speedX - New X velocity
  * @param {number} speedY - New Y velocity
  * @param {string} type - Bubble type filter (null for all types)
@@ -477,7 +572,8 @@ function setBubbleVelocity(bubbles, speedX, speedY, type = null) {
 /**
  * Scale bubble velocities by a multiplier
  * Useful for slow-motion or speed-up effects
- * * @param {Array<Bubble>} bubbles - Bubbles array
+ * 
+ * @param {Array<Bubble>} bubbles - Bubbles array
  * @param {number} multiplier - Speed multiplier
  * @param {string} type - Bubble type filter (null for all types)
  */
@@ -494,7 +590,8 @@ function scaleBubbleVelocity(bubbles, multiplier, type = null) {
 /**
  * Get statistics about current bubbles
  * Useful for debugging and game balance
- * * @param {Array<Bubble>} bubbles - Bubbles array
+ * 
+ * @param {Array<Bubble>} bubbles - Bubbles array
  * @returns {Object} Statistics object
  */
 function getBubbleStats(bubbles) {
@@ -558,5 +655,11 @@ export {
   setBubbleVelocity,
   scaleBubbleVelocity,
   getBubbleStats,
-  resetSpawnTimer
+  resetSpawnTimer,
+  
+  // Color matching utilities (for Colour Rush)
+  calculateColorDistance,
+  hexToRgb,
+  isColorMatch,
+  getBubblesByColor
 };

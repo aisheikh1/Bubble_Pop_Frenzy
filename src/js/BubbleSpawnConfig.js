@@ -3,11 +3,13 @@
 /**
  * BubbleSpawnConfig.js
  * Centralized configuration and logic for bubble spawning across all game modes.
- * * This module handles:
+ * 
+ * This module handles:
  * - Bubble type definitions per game mode
  * - Weighted random selection of bubble types
  * - Spawn rate and timing configurations
- * * Usage:
+ * 
+ * Usage:
  * import { BubbleSpawnConfig } from './BubbleSpawnConfig.js';
  * const nextType = BubbleSpawnConfig.getNextBubbleType('classic', gameState);
  */
@@ -61,17 +63,25 @@ export const BUBBLE_TYPE_INFO = {
  */
 const SPAWN_WEIGHTS = {
   classic: {
-    // 70% Normal, 25% Double, 5% Decoy (based on original comments/intent)
+    // 70% Normal, 30% Double, 0% Decoy
     [BUBBLE_TYPES.NORMAL]: 70,
     [BUBBLE_TYPES.DOUBLE]: 30,
     [BUBBLE_TYPES.DECOY]: 0
   },
   
   survival: {
-    // 65% Normal, 20% Double, 15% Decoy (Decoy increased to absorb Bomb's 5%)
+    // 40% Normal, 40% Double, 20% Decoy
     [BUBBLE_TYPES.NORMAL]: 40,
     [BUBBLE_TYPES.DOUBLE]: 40,
     [BUBBLE_TYPES.DECOY]: 20
+  },
+  
+  colourrush: {
+    // 70% Normal, 30% Double, 0% Decoy
+    // Colour Rush uses color matching instead of decoys
+    [BUBBLE_TYPES.NORMAL]: 70,
+    [BUBBLE_TYPES.DOUBLE]: 30,
+    [BUBBLE_TYPES.DECOY]: 0
   }
 };
 
@@ -94,6 +104,14 @@ export const SPAWN_RATE_CONFIG = {
     difficultyScaling: true,
     minBubbles: 5,
     maxBubbles: 10
+  },
+  
+  colourrush: {
+    initialInterval: 1000,
+    minInterval: 450,
+    difficultyScaling: true,
+    minBubbles: 6,                 // Slightly more bubbles for color variety
+    maxBubbles: 12
   }
 };
 
@@ -121,8 +139,6 @@ class SpawnState {
   resetPops() {
     this.consecutivePops = 0;
   }
-  
-  // All special spawn check methods removed
 }
 
 // Global spawn state instance
@@ -134,7 +150,8 @@ const spawnState = new SpawnState();
 
 /**
  * Select a random bubble type based on weighted probabilities
- * * @param {string} gameMode - Current game mode ('classic' or 'survival')
+ * 
+ * @param {string} gameMode - Current game mode ('classic', 'survival', or 'colourrush')
  * @returns {string} Selected bubble type
  */
 function selectWeightedRandomType(gameMode) {
@@ -142,6 +159,7 @@ function selectWeightedRandomType(gameMode) {
   
   if (!weights) {
     // Fallback: Unknown game mode
+    console.warn(`[BubbleSpawnConfig] Unknown game mode: ${gameMode}, defaulting to normal bubbles`);
     return BUBBLE_TYPES.NORMAL;
   }
   
@@ -182,8 +200,9 @@ function selectWeightedRandomType(gameMode) {
 
 /**
  * Get the next bubble type to spawn
- * Now exclusively uses weighted random selection.
- * * @param {string} gameMode - Current game mode ('classic' or 'survival')
+ * Uses weighted random selection based on game mode.
+ * 
+ * @param {string} gameMode - Current game mode ('classic', 'survival', or 'colourrush')
  * @param {Object} gameState - Current game state
  * @returns {string} Bubble type to spawn
  */
@@ -195,14 +214,15 @@ export function getNextBubbleType(gameMode, gameState = {}) {
     spawnState.consecutivePops = consecutivePops;
   }
   
-  // Default: weighted random selection
+  // Use weighted random selection
   return selectWeightedRandomType(gameMode);
 }
 
 /**
  * Notify the spawn config that a bubble was popped
  * Updates combo tracking
- * * @param {string} bubbleType - Type of bubble that was popped
+ * 
+ * @param {string} bubbleType - Type of bubble that was popped
  * @param {boolean} wasSuccessful - Whether the pop was successful (not a decoy)
  */
 export function notifyBubblePopped(bubbleType, wasSuccessful = true) {
@@ -270,18 +290,32 @@ export function getAvailableBubbleTypes(gameMode) {
  * @param {string} gameMode - Game mode to update
  * @param {string} bubbleType - Bubble type to update
  * @param {number} newWeight - New weight value
+ * @returns {boolean} True if update successful
  */
 export function updateSpawnWeight(gameMode, bubbleType, newWeight) {
   if (!SPAWN_WEIGHTS[gameMode]) {
+    console.warn(`[BubbleSpawnConfig] Cannot update weight: unknown game mode ${gameMode}`);
     return false;
   }
   
   if (!BUBBLE_TYPES[bubbleType.toUpperCase()]) {
+    console.warn(`[BubbleSpawnConfig] Cannot update weight: unknown bubble type ${bubbleType}`);
     return false;
   }
   
   SPAWN_WEIGHTS[gameMode][bubbleType] = Math.max(0, newWeight);
+  console.log(`[BubbleSpawnConfig] Updated ${gameMode} ${bubbleType} weight to ${newWeight}`);
   return true;
+}
+
+/**
+ * Get spawn state for debugging
+ * @returns {Object} Current spawn state
+ */
+export function getSpawnState() {
+  return {
+    consecutivePops: spawnState.consecutivePops
+  };
 }
 
 // ============================================================================
@@ -297,6 +331,7 @@ export const BubbleSpawnConfig = {
   
   // Query API
   getSpawnWeights,
+  getSpawnState,
   isBubbleTypeAvailable,
   getAvailableBubbleTypes,
   

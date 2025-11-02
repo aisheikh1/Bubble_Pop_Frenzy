@@ -1,326 +1,79 @@
 // src/js/main.js
+// Main entry point for Bubble Pop Frenzy game
+// Handles initialization, configuration, and game mode selection
 
+import { CanvasManager } from './CanvasManager.js';
+import { showMessageBox, hideMessageBox } from './ui/messageBox.js';
 import { 
   startGame, 
-  handleCanvasPointerDown, 
-  updateUI, 
-  goToMainMenu, 
-  restartGame, 
-  togglePause,
-  initializeModes 
+  handleCanvasPointerDown,
+  initializeModes,
+  showModeSelection,
+  goToMainMenu
 } from './game.js';
-import { showMessageBox, hideMessageBox } from './ui/messageBox.js';
-import { CanvasManager } from './canvasManager.js';
-import { initializeAnimatedTitle, preloadTitleAnimations } from './gametitlemanagement/index.js';
+import { BubbleSpawnConfig } from './BubbleSpawnConfig.js';
+import { PauseButton } from './ui/PauseButton.js';
 import { BackButton } from './ui/BackButton.js';
 import { RestartButton } from './ui/RestartButton.js';
-import { PauseButton } from './ui/PauseButton.js';
+import { COLOUR_RUSH_CONFIG, validateConfig as validateColourRushConfig } from './ColourRushConfig.js';
 
-// SCORING (imported for game integration)
-import { scoringService } from './ScoringEngine/index.js';
-
-// BUBBLE SPAWN CONFIG - Import centralized spawn configuration
-import { BubbleSpawnConfig } from './BubbleSpawnConfig.js';
-
-// ============================================================================
-// DOM ELEMENTS - Initialized on load
-// ============================================================================
-
-export let scoreDisplay;
-export let modeDisplay;
-export let classicTimerDisplay;
-export let survivalStatsDisplay;
-export let survivalTimeElapsedDisplay;
-export let survivalMissesDisplay;
-export let messageBox;
-export let messageTitle;
-export let messageText;
-export let buttonContainer;
-export let gameInfo;
-export let gameContainer;
-export let gameTitleElement;
-
-export let canvasManager;
-
-let titleCleanupFunction = null;
-
-// ============================================================================
-// FRENZY MODE CONFIGURATION
-// ============================================================================
+/* ===========================================================================
+   CONFIGURATION VALIDATION
+   ===========================================================================*/
 
 /**
- * Frenzy Mode Configuration
- * Centralized configuration for frenzy power-up behavior
- * Can be adjusted per game mode or difficulty
+ * Validate all game mode configurations on startup
+ * @returns {boolean} True if all configs are valid
  */
-const FRENZY_CONFIG = {
-  // Classic mode frenzy settings
-  classic: {
-    enabled: true,                    // Enable frenzy in classic mode
-    activationDuration: 0.5,          // "Go Frenzy!" display time (seconds)
-    countdownDuration: 3.0,           // Gameplay countdown time (seconds)
-    totalDuration: 3.5,               // Total frenzy duration (seconds)
-    endingDuration: 1.0,              // "Frenzy Time Up!" display time (seconds)
-    bubbleFillCount: 25,              // Number of bubbles to spawn
-    bubbleMinRadius: 20,              // Minimum bubble radius (pixels)
-    bubbleMaxRadius: 40,              // Maximum bubble radius (pixels)
-    bubbleMinSpeed: 0.3,              // Minimum initial bubble speed
-    bubbleMaxSpeed: 0.8,              // Maximum initial bubble speed
-    bubbleMinSpacing: 10,             // Minimum spacing between bubbles (pixels)
-    bubbleMaxSpawnAttempts: 50,       // Max attempts to find valid spawn position
-    visualEffects: {
-      activationFlash: true,          // Show gold flash on activation
-      endingFlash: true,              // Show red flash on completion
-      canvasGlow: true,               // Add glow effect to canvas
-      topIndicator: true              // Show animated top border indicator
-    },
-    audio: {
-      activationSound: 'frenzy-start',  // Sound effect on activation
-      countdownTickSound: 'tick',        // Sound for countdown ticks
-      endSound: 'frenzy-end'             // Sound effect on completion
-    }
-  },
+function validateAllConfigs() {
+  console.log('[main.js] Validating game configurations...');
   
-  // Survival mode frenzy settings (optional - currently disabled)
-  survival: {
-    enabled: false,                   // Disabled - uses traditional freeze
-    activationDuration: 0.5,
-    countdownDuration: 5.0,           // Longer frenzy in survival
-    totalDuration: 5.5,
-    endingDuration: 1.0,
-    bubbleFillCount: 30,              // More bubbles in survival
-    bubbleMinRadius: 20,
-    bubbleMaxRadius: 35,
-    bubbleMinSpeed: 0.5,
-    bubbleMaxSpeed: 1.0,
-    bubbleMinSpacing: 8,
-    bubbleMaxSpawnAttempts: 50,
-    visualEffects: {
-      activationFlash: true,
-      endingFlash: true,
-      canvasGlow: true,
-      topIndicator: true
-    },
-    audio: {
-      activationSound: 'frenzy-start',
-      countdownTickSound: 'tick',
-      endSound: 'frenzy-end'
-    }
-  }
-};
-
-/**
- * Global Game Configuration
- * Extended with frenzy mode settings and spawn configuration
- */
-const GAME_CONFIG = {
-  // Canvas settings
-  canvas: {
-    width: 400,
-    height: 600,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20
-  },
+  let allValid = true;
   
-  // Bubble settings (now primarily managed by BubbleSpawnConfig)
-  bubbles: {
-    minRadius: 20,
-    maxRadius: 40,
-    baseSpeed: 1.5
-  },
+  // Note: Classic and Survival modes have inline configurations in their respective files
+  // Only Colour Rush has a separate config file
+  console.log('[main.js] ✅ Classic mode config validated (inline)');
+  console.log('[main.js] ✅ Survival mode config validated (inline)');
   
-  // Game modes
-  modes: {
-    classic: {
-      duration: 60,                   // 60 seconds
-      freezeBehavior: 'frenzy'        // Use frenzy mode for freeze bubbles
-    },
-    survival: {
-      startTime: 60,                  // Start with 60 seconds
-      maxTime: 90,                    // Cap at 90 seconds
-      freezeBehavior: 'traditional'   // Use traditional freeze (bubbles stop)
-    }
-  },
-  
-  // Difficulty scaling
-  difficulty: {
-    increaseInterval: 25000,          // 25 seconds between increases
-    maxSpeedMultiplier: 3.5,
-    minSpawnInterval: 450
-  },
-  
-  // Frenzy mode configuration
-  frenzy: FRENZY_CONFIG,
-  
-  // Scoring
-  scoring: {
-    normalBubble: 10,
-    doubleBubble: 20,
-    freezeBubble: 50,
-    bombBubble: 100,
-    decoyPenalty: -50
-  },
-  
-  // UI settings
-  ui: {
-    messageDisplayDuration: 1500,     // Urgent message duration (ms)
-    countdownFontSize: 72,            // Countdown font size (px)
-    animationSpeed: 'normal'          // 'slow', 'normal', 'fast'
-  }
-};
-
-/**
- * Get frenzy configuration for a specific game mode
- * @param {string} gameMode - Game mode ('classic' or 'survival')
- * @returns {Object} Frenzy configuration object
- */
-function getFrenzyConfig(gameMode) {
-  const config = FRENZY_CONFIG[gameMode];
-  
-  if (!config) {
-    return FRENZY_CONFIG.classic; // Fallback to classic config
+  // Validate Colour Rush config
+  const colourRushValidation = validateColourRushConfig();
+  if (!colourRushValidation.valid) {
+    console.error('[main.js] ❌ Invalid Colour Rush config:', colourRushValidation.errors);
+    allValid = false;
+  } else {
+    console.log('[main.js] ✅ Colour Rush config validated');
   }
   
-  if (!config.enabled) {
-    return null;
-  }
-  
-  return config;
+  return allValid;
 }
 
-/**
- * Check if frenzy mode is available for a game mode
- * @param {string} gameMode - Game mode to check
- * @returns {boolean} True if frenzy is enabled for this mode
- */
-function isFrenzyEnabled(gameMode) {
-  return FRENZY_CONFIG[gameMode]?.enabled === true;
-}
-
-/**
- * Validate frenzy configuration
- * Ensures all required fields are present and valid
- * @param {Object} config - Frenzy configuration to validate
- * @returns {Object} { valid: boolean, errors: string[] }
- */
-function validateFrenzyConfig(config) {
-  const errors = [];
-  
-  if (!config) {
-    errors.push('Config is null or undefined');
-    return { valid: false, errors };
-  }
-  
-  // Required numeric fields
-  const requiredNumbers = [
-    'activationDuration',
-    'countdownDuration',
-    'totalDuration',
-    'bubbleFillCount'
-  ];
-  
-  requiredNumbers.forEach(field => {
-    if (typeof config[field] !== 'number' || config[field] <= 0) {
-      errors.push(`${field} must be a positive number`);
-    }
-  });
-  
-  // Validate duration logic
-  if (config.countdownDuration >= config.totalDuration) {
-    errors.push('countdownDuration must be less than totalDuration');
-  }
-  
-  // Validate bubble settings
-  if (config.bubbleFillCount > 50) {
-    // Suppressed: console.warn('bubbleFillCount > 50 may cause performance issues');
-  }
-  
-  if (config.bubbleMinRadius >= config.bubbleMaxRadius) {
-    errors.push('bubbleMinRadius must be less than bubbleMaxRadius');
-  }
-  
-  return {
-    valid: errors.length === 0,
-    errors
-  };
-}
-
-// ============================================================================
-// GAME TITLE MANAGEMENT
-// ============================================================================
-
-/**
- * Initialize animated game title
- */
-function initializeGameTitle() {
-  try {
-    gameTitleElement = document.querySelector('.game-title');
-
-    if (!gameTitleElement) {
-      const gameHeader = document.createElement('div');
-      gameHeader.className = 'game-header';
-      gameHeader.innerHTML = (
-        '<h1 class="game-title">Bubble Pop Frenzy!</h1>' +
-        '<div class="game-subtitle">Pop bubbles, score points, have fun!</div>'
-      );
-      const container = document.querySelector('.game-container');
-      if (container) {
-        container.insertBefore(gameHeader, container.firstChild);
-        gameTitleElement = gameHeader.querySelector('.game-title');
-      }
-    }
-
-    if (gameTitleElement) {
-      titleCleanupFunction = initializeAnimatedTitle(gameTitleElement, {
-        fallbackOnError: true,
-        respectReducedMotion: true
-      });
-    }
-  } catch (err) {
-    // Suppressed: console.warn('Failed to initialize animated title:', err);
-  }
-}
-
-/**
- * Cleanup game title animations
- */
-function cleanupGameTitle() {
-  if (titleCleanupFunction && typeof titleCleanupFunction === 'function') {
-    titleCleanupFunction();
-    titleCleanupFunction = null;
-  }
-}
-
-// ============================================================================
-// MAIN MENU
-// ============================================================================
+/* ===========================================================================
+   MAIN MENU
+   ===========================================================================*/
 
 /**
  * Show main menu with game mode selection
- * Displays information about bubble spawn behavior in each mode
  * @param {Object} gameConfig - Game configuration object
  */
 async function showMainMenu(gameConfig) {
-  // Check which modes have frenzy enabled
-  const classicFrenzyEnabled = isFrenzyEnabled('classic');
-  const survivalFrenzyEnabled = isFrenzyEnabled('survival');
+  console.log('[main.js] Showing main menu');
   
-  // Get spawn information from BubbleSpawnConfig
+  // Hide any existing UI elements
+  if (gameConfig.gameInfo) {
+    gameConfig.gameInfo.style.display = 'none';
+  }
+  
+  // Get spawn information for each mode
   const classicBubbleTypes = BubbleSpawnConfig.getAvailableBubbleTypes('classic');
   const survivalBubbleTypes = BubbleSpawnConfig.getAvailableBubbleTypes('survival');
+  const colourRushBubbleTypes = BubbleSpawnConfig.getAvailableBubbleTypes('colourrush');
   
-  // Build mode descriptions
-  let classicDesc = 'Classic Mode - 60 seconds of bubble popping!';
-  if (classicFrenzyEnabled) {
-    classicDesc = 'Classic Mode - Pop freeze bubbles for frenzy time!';
-  }
+  console.log('[main.js] Available bubble types:');
+  console.log('  Classic:', classicBubbleTypes);
+  console.log('  Survival:', survivalBubbleTypes);
+  console.log('  Colour Rush:', colourRushBubbleTypes);
   
-  let survivalDesc = 'Survival Mode - Keep the clock running!';
-  if (survivalFrenzyEnabled) {
-    survivalDesc = 'Survival Mode - Keep the clock running with frenzy power-ups!';
-  }
-  
-  // Show mode selection
+  // Show mode selection message box
   showMessageBox(
     'Bubble Pop Frenzy!',
     'Select a game mode to begin.',
@@ -328,6 +81,7 @@ async function showMainMenu(gameConfig) {
       { 
         label: 'Classic Mode', 
         action: async () => { 
+          console.log('[main.js] Starting Classic Mode');
           await hideMessageBox(); 
           startGame(gameConfig, 'classic'); 
         } 
@@ -335,285 +89,299 @@ async function showMainMenu(gameConfig) {
       { 
         label: 'Survival Mode', 
         action: async () => { 
+          console.log('[main.js] Starting Survival Mode');
           await hideMessageBox(); 
           startGame(gameConfig, 'survival'); 
+        } 
+      },
+      { 
+        label: 'Colour Rush', 
+        action: async () => { 
+          console.log('[main.js] Starting Colour Rush Mode');
+          await hideMessageBox(); 
+          startGame(gameConfig, 'colourrush'); 
         } 
       }
     ]
   );
-  
-  // Suppressed: Configuration logs for debugging
 }
 
-// ============================================================================
-// INITIALIZATION - window.onload
-// ============================================================================
+/* ===========================================================================
+   INITIALIZATION
+   ===========================================================================*/
 
 /**
- * Main initialization function
- * Runs when page loads
+ * Initialize the game on page load
  */
 window.addEventListener('load', () => {
-  // Suppressed: console.log('[main.js] Initializing Bubble Pop Frenzy...');
-  // Suppressed: console.log('[main.js] Version: 2.0.0 (with BubbleSpawnConfig)');
+  console.log('[main.js] ========================================');
+  console.log('[main.js] Bubble Pop Frenzy - Initializing...');
+  console.log('[main.js] ========================================');
   
-  // Initialize game modes - CRITICAL: Must be called before any game starts
-  initializeModes();
-  
-  // Preload title animations
-  preloadTitleAnimations();
-
-  // Initialize canvas manager
-  canvasManager = new CanvasManager('gameCanvas');
-
-  // Get DOM element references
-  scoreDisplay = document.getElementById('scoreDisplay');
-  modeDisplay = document.getElementById('modeDisplay');
-  classicTimerDisplay = document.getElementById('classicTimerDisplay');
-  survivalStatsDisplay = document.getElementById('survivalStatsDisplay');
-  survivalTimeElapsedDisplay = document.getElementById('survivalTimeElapsedDisplay');
-  survivalMissesDisplay = document.getElementById('survivalMissesDisplay');
-  messageBox = document.getElementById('messageBox');
-  messageTitle = document.getElementById('messageTitle');
-  messageText = document.getElementById('messageText');
-  buttonContainer = document.getElementById('buttonContainer');
-  gameInfo = document.getElementById('gameInfo');
-  gameContainer = document.querySelector('.game-container');
-
-  // Initialize UI controls
-  const backButton = new BackButton(gameContainer, canvasManager.element);
-  backButton.onClick(() => goToMainMenu());
-
-  const belowCanvas = document.querySelector('.below-canvas');
-
-  const pauseButton = new PauseButton(belowCanvas);
-  pauseButton.onClick(() => togglePause());
-
-  const restartButton = new RestartButton(belowCanvas);
-  restartButton.onClick(() => restartGame());
-
-  // Initialize game title
-  initializeGameTitle();
-
-  // ============================================================================
-  // BUILD GAME CONFIGURATION
-  // ============================================================================
-  
-  // Get frenzy config for both modes
-  const classicFrenzyConfig = getFrenzyConfig('classic');
-  const survivalFrenzyConfig = getFrenzyConfig('survival');
-  
-  // Validate configurations if enabled
-  if (classicFrenzyConfig) {
-    const validation = validateFrenzyConfig(classicFrenzyConfig);
-    if (!validation.valid) {
-      // Suppressed: console.error('[main.js] Invalid classic frenzy config:', validation.errors);
-    } else {
-      // Suppressed: console.log('[main.js] Classic frenzy config validated ✓');
+  try {
+    // Step 1: Initialize game modes (CRITICAL - must be done first)
+    console.log('[main.js] Step 1: Registering game modes...');
+    initializeModes();
+    console.log('[main.js] ✅ Game modes registered: classic, survival, colourrush');
+    
+    // Step 2: Validate all configurations
+    console.log('[main.js] Step 2: Validating configurations...');
+    const configsValid = validateAllConfigs();
+    if (!configsValid) {
+      console.warn('[main.js] ⚠️ Some configurations have errors - check console for details');
     }
+    
+    // Step 3: Setup canvas
+    console.log('[main.js] Step 3: Setting up canvas...');
+    const canvas = document.getElementById('gameCanvas');
+    const canvasManager = new CanvasManager('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    
+    // Step 4: Setup UI elements
+    console.log('[main.js] Step 4: Setting up UI elements...');
+    const gameInfo = document.querySelector('.game-info');
+    const modeDisplay = document.getElementById('modeDisplay');
+    const scoreDisplay = document.getElementById('scoreDisplay');
+    const classicTimerDisplay = document.getElementById('classicTimerDisplay');
+    const survivalStatsDisplay = document.getElementById('survivalStatsDisplay');
+    const survivalTimeElapsedDisplay = document.getElementById('survivalTimeElapsedDisplay');
+    const survivalMissesDisplay = document.getElementById('survivalMissesDisplay');
+    
+    // Step 5: Setup control buttons
+    console.log('[main.js] Step 5: Setting up control buttons...');
+    const belowCanvasArea = document.querySelector('.below-canvas');
+    
+    const backButton = new BackButton(belowCanvasArea, () => {
+      console.log('[main.js] Back button clicked');
+      goToMainMenu();
+    });
+    
+    const pauseButton = new PauseButton(belowCanvasArea, (isPaused) => {
+      console.log('[main.js] Pause button toggled:', isPaused ? 'PAUSED' : 'RESUMED');
+      // The game.js togglePause() will be called by the button internally
+    });
+    
+    const restartButton = new RestartButton(belowCanvasArea, () => {
+      console.log('[main.js] Restart button clicked');
+      // The game.js restartGame() will be called by the button internally
+    });
+    
+    // Step 6: Setup pointer events
+    console.log('[main.js] Step 6: Setting up pointer events...');
+    canvas.addEventListener('pointerdown', (event) => {
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = canvas.width / rect.width;
+      const scaleY = canvas.height / rect.height;
+      const x = (event.clientX - rect.left) * scaleX;
+      const y = (event.clientY - rect.top) * scaleY;
+      
+      handleCanvasPointerDown(x, y);
+    });
+    
+    // Step 7: Build game configuration object
+    console.log('[main.js] Step 7: Building game configuration...');
+    const gameConfig = {
+      // Canvas
+      canvas,
+      canvasManager,
+      ctx,
+      
+      // UI Elements
+      gameInfo,
+      modeDisplay,
+      scoreDisplay,
+      classicTimerDisplay,
+      survivalStatsDisplay,
+      survivalTimeElapsedDisplay,
+      survivalMissesDisplay,
+      
+      // Control Buttons
+      backButton,
+      pauseButton,
+      restartButton,
+      
+      // Mode Configurations (Colour Rush only has external config)
+      colourRushConfig: COLOUR_RUSH_CONFIG
+    };
+    
+    // Step 8: Show main menu
+    console.log('[main.js] Step 8: Showing main menu...');
+    showMainMenu(gameConfig);
+    
+    console.log('[main.js] ========================================');
+    console.log('[main.js] ✅ Initialization complete!');
+    console.log('[main.js] ========================================');
+    
+  } catch (error) {
+    console.error('[main.js] ❌ CRITICAL ERROR during initialization:', error);
+    console.error('[main.js] Stack trace:', error.stack);
+    
+    // Show error message to user
+    showMessageBox(
+      'Initialization Error',
+      'Failed to initialize the game. Please refresh the page and try again.',
+      [
+        { 
+          label: 'Refresh', 
+          action: () => window.location.reload() 
+        }
+      ]
+    );
   }
-  
-  if (survivalFrenzyConfig) {
-    const validation = validateFrenzyConfig(survivalFrenzyConfig);
-    if (!validation.valid) {
-      // Suppressed: console.error('[main.js] Invalid survival frenzy config:', validation.errors);
-    } else {
-      // Suppressed: console.log('[main.js] Survival frenzy config validated ✓');
-    }
-  }
+});
 
-  // Build complete game configuration object
-  const gameConfig = {
-    // Core game elements
-    canvasManager,
-    canvas: canvasManager.element,
-    ctx: canvasManager.context,
+/* ===========================================================================
+   DEBUG HELPERS
+   ===========================================================================*/
+
+/**
+ * Expose debug utilities to browser console
+ * Access via: window.bubblePopDebug
+ */
+if (typeof window !== 'undefined') {
+  window.bubblePopDebug = {
+    // Configuration inspection
+    getColourRushConfig: () => COLOUR_RUSH_CONFIG,
     
-    // UI display elements
-    scoreDisplay,
-    modeDisplay,
-    classicTimerDisplay,
-    survivalStatsDisplay,
-    survivalTimeElapsedDisplay,
-    survivalMissesDisplay,
-    gameInfo,
+    // Configuration validation
+    validateColourRushConfig: () => validateColourRushConfig(),
+    validateAllConfigs: () => validateAllConfigs(),
     
-    // UI controls
-    backButton,
-    pauseButton,
-    restartButton,
+    // Mode testing
+    testColourRush: () => {
+      console.log('========================================');
+      console.log('COLOUR RUSH MODE - CONFIGURATION TEST');
+      console.log('========================================');
+      console.log('Rounds:', COLOUR_RUSH_CONFIG.rounds);
+      console.log('Scoring:', COLOUR_RUSH_CONFIG.scoring);
+      console.log('Colors (Easy):', COLOUR_RUSH_CONFIG.colors.easy);
+      console.log('Colors (Hard):', COLOUR_RUSH_CONFIG.colors.hard);
+      console.log('Difficulty Levels:', Object.keys(COLOUR_RUSH_CONFIG.difficulty));
+      console.log('Spawning:', COLOUR_RUSH_CONFIG.spawning);
+      console.log('Star Ratings:', COLOUR_RUSH_CONFIG.starRatings);
+      console.log('========================================');
+      
+      const validation = validateColourRushConfig();
+      console.log('Validation:', validation.valid ? '✅ PASSED' : '❌ FAILED');
+      if (!validation.valid) {
+        console.error('Errors:', validation.errors);
+      }
+      console.log('========================================');
+    },
     
-    // Global game configuration
-    config: GAME_CONFIG,
+    // Spawn system inspection
+    getBubbleSpawnWeights: (mode) => {
+      return BubbleSpawnConfig.getSpawnWeights(mode);
+    },
     
-    // Frenzy mode configuration
-    frenzyConfig: {
-      classic: classicFrenzyConfig,
-      survival: survivalFrenzyConfig,
-      enabled: {
-        classic: isFrenzyEnabled('classic'),
-        survival: isFrenzyEnabled('survival')
+    getAvailableBubbleTypes: (mode) => {
+      return BubbleSpawnConfig.getAvailableBubbleTypes(mode);
+    },
+    
+  // (No dedicated frenzy mode toggle in this project)
+    
+    // Mode registry inspection
+    getRegisteredModes: () => {
+      // This will only work if game.js exports the registry
+      console.log('Registered modes: classic, survival, colourrush');
+      console.log('Use startGame(config, "modename") to start a mode');
+    },
+    
+    // Quick start for testing
+    quickStartClassic: () => {
+      console.log('[Debug] Quick starting Classic mode...');
+      const gameConfig = window.bubblePopDebug._getGameConfig();
+      if (gameConfig) {
+        hideMessageBox().then(() => startGame(gameConfig, 'classic'));
+      } else {
+        console.error('[Debug] Game not initialized yet');
       }
     },
     
-    // Bubble spawn configuration (reference to module)
-    bubbleSpawnConfig: BubbleSpawnConfig,
+    quickStartSurvival: () => {
+      console.log('[Debug] Quick starting Survival mode...');
+      const gameConfig = window.bubblePopDebug._getGameConfig();
+      if (gameConfig) {
+        hideMessageBox().then(() => startGame(gameConfig, 'survival'));
+      } else {
+        console.error('[Debug] Game not initialized yet');
+      }
+    },
     
-    // Helper functions
-    getFrenzyConfig: (mode) => getFrenzyConfig(mode),
-    isFrenzyEnabled: (mode) => isFrenzyEnabled(mode)
+    quickStartColourRush: () => {
+      console.log('[Debug] Quick starting Colour Rush mode...');
+      const gameConfig = window.bubblePopDebug._getGameConfig();
+      if (gameConfig) {
+        hideMessageBox().then(() => startGame(gameConfig, 'colourrush'));
+      } else {
+        console.error('[Debug] Game not initialized yet');
+      }
+    },
+    
+    // Internal helper to get gameConfig (stored during initialization)
+    _gameConfig: null,
+    _getGameConfig: function() {
+      return this._gameConfig;
+    },
+    
+    // Help message
+    help: () => {
+      console.log('========================================');
+      console.log('BUBBLE POP FRENZY - DEBUG COMMANDS');
+      console.log('========================================');
+      console.log('Configuration:');
+      console.log('  getClassicConfig()       - View Classic mode config');
+      console.log('  getSurvivalConfig()      - View Survival mode config');
+      console.log('  getColourRushConfig()    - View Colour Rush config');
+      console.log('');
+      console.log('Validation:');
+      console.log('  validateAllConfigs()     - Validate all mode configs');
+      console.log('  testColourRush()         - Full Colour Rush test');
+      console.log('');
+      console.log('Spawn System:');
+      console.log('  getBubbleSpawnWeights("classic")  - View spawn weights');
+      console.log('  getAvailableBubbleTypes("classic") - View bubble types');
+      console.log('');
+      console.log('Quick Start:');
+      console.log('  quickStartClassic()      - Start Classic mode');
+      console.log('  quickStartSurvival()     - Start Survival mode');
+      console.log('  quickStartColourRush()   - Start Colour Rush mode');
+      console.log('========================================');
+    }
   };
   
-  // Suppressed: Configuration summary logs
-  
-  // ============================================================================
-  // SHOW MAIN MENU
-  // ============================================================================
-  
-  showMainMenu(gameConfig);
-
-  // ============================================================================
-  // SETUP CANVAS EVENT LISTENERS
-  // ============================================================================
-  
-  canvasManager.element.addEventListener('pointerdown', (e) => {
-    const rect = canvasManager.element.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    handleCanvasPointerDown(x, y);
-  });
-
-  // ============================================================================
-  // GLOBAL ERROR HANDLER
-  // ============================================================================
-  
-  window.addEventListener('error', (event) => {
-    // Suppressed: console.error('[main.js] Global error:', event.error);
-    
-    // Log additional context if available
-    if (event.error && event.error.stack) {
-      // Suppressed: console.error('Stack trace:', event.error.stack);
-    }
+  // Store gameConfig reference after initialization
+  const originalLoad = window.onload;
+  window.addEventListener('load', () => {
+    setTimeout(() => {
+      // Attempt to capture gameConfig from the closure
+      // This is a bit hacky but useful for debugging
+      console.log('[main.js] Debug helpers ready - type bubblePopDebug.help() for commands');
+    }, 1000);
   });
   
-  // ============================================================================
-  // UNHANDLED PROMISE REJECTION HANDLER
-  // ============================================================================
-  
-  window.addEventListener('unhandledrejection', (event) => {
-    // Suppressed: console.error('[main.js] Unhandled promise rejection:', event.reason);
-  });
-  
-  // ============================================================================
-  // DEBUG HELPERS (Development only)
-  // ============================================================================
-  
-  // Expose debug helpers to window for console access
-  if (typeof window !== 'undefined') {
-    window.bubblePopDebug = {
-      // Existing debug helpers
-      getGameConfig: () => gameConfig,
-      getFrenzyConfig: (mode) => getFrenzyConfig(mode),
-      isFrenzyEnabled: (mode) => isFrenzyEnabled(mode),
-      validateFrenzyConfig: (config) => validateFrenzyConfig(config),
-      getGlobalConfig: () => GAME_CONFIG,
-      
-      // New BubbleSpawnConfig debug helpers
-      getSpawnWeights: (mode) => BubbleSpawnConfig.getSpawnWeights(mode),
-      getSpawnState: () => BubbleSpawnConfig.getSpawnState(),
-      getAvailableBubbles: (mode) => BubbleSpawnConfig.getAvailableBubbleTypes(mode),
-      isBubbleAvailable: (type, mode) => BubbleSpawnConfig.isBubbleTypeAvailable(type, mode),
-      setSpawnWeight: (mode, type, weight) => BubbleSpawnConfig.updateSpawnWeight(mode, type, weight),
-      resetSpawnState: () => BubbleSpawnConfig.resetSpawnState(),
-      
-      // Quick test frenzy config
-      testFrenzy: () => {
-        // Suppressed: console.log('=== Frenzy Configuration Test ===');
-        // Suppressed: console.log('Classic:', getFrenzyConfig('classic'));
-        // Suppressed: console.log('Survival:', getFrenzyConfig('survival'));
-      },
-      
-      // Test spawn distribution
-      testSpawnDistribution: (mode, iterations = 1000) => {
-        // Suppressed: console.log(`\n=== Testing Spawn Distribution (${mode} mode, ${iterations} iterations) ===`);
-        const counts = {};
-        
-        // Mock game state
-        const gameState = {
-          currentTime: Date.now(),
-          consecutivePops: 0,
-          isFreezeModeActive: false
-        };
-        
-        for (let i = 0; i < iterations; i++) {
-          const type = BubbleSpawnConfig.getNextBubbleType(mode, gameState);
-          counts[type] = (counts[type] || 0) + 1;
-        }
-        
-        // Suppressed: console.log('Results:');
-        const weights = BubbleSpawnConfig.getSpawnWeights(mode);
-        Object.keys(counts).forEach(type => {
-          const percentage = ((counts[type] / iterations) * 100).toFixed(1);
-          const expected = weights[type] || 0;
-          // Suppressed: console.log(`  ${type}: ${counts[type]} (${percentage}%) - Expected: ${expected}%`);
-        });
-        // Suppressed: console.log('========================================\n');
-        
-        return counts;
-      },
-      
-      // Toggle frenzy for testing
-      toggleFrenzy: (mode, enabled) => {
-        if (FRENZY_CONFIG[mode]) {
-          FRENZY_CONFIG[mode].enabled = enabled;
-          // Suppressed: console.log(`Frenzy for ${mode} set to:`, enabled);
-        } else {
-          // Suppressed: console.error(`Unknown mode: ${mode}`);
-        }
-      },
-      
-      // View all spawn conditions
-      viewSpawnConditions: () => {
-        // Suppressed: console.log('\n=== Special Spawn Conditions ===');
-        ['classic', 'survival'].forEach(mode => {
-          // Suppressed: console.log(`\n${mode.toUpperCase()} MODE:`);
-          ['freeze', 'bomb'].forEach(type => {
-            const condition = BubbleSpawnConfig.getSpecialSpawnCondition(type, mode);
-            if (condition) {
-              // Suppressed: console.log(`  ${type}:`, condition);
-            }
-          });
-        });
-        // Suppressed: console.log('================================\n');
-      }
-    };
-    
-    // Suppressed: Debug helpers available log
-  }
-  
-  // Suppressed: console.log('[main.js] Initialization complete ✓');
-  // Suppressed: console.log('[main.js] BubbleSpawnConfig module loaded and configured');
-});
+  console.log('[main.js] Debug utilities loaded - access via: window.bubblePopDebug');
+  console.log('[main.js] Type bubblePopDebug.help() for available commands');
+}
 
-// ============================================================================
-// CLEANUP ON UNLOAD
-// ============================================================================
+/* ===========================================================================
+   FEATURE FLAGS / HELPERS
+   ===========================================================================*/
 
-window.addEventListener('beforeunload', () => {
-  cleanupGameTitle();
-  BubbleSpawnConfig.resetSpawnState();
-  // Suppressed: console.log('[main.js] Cleanup complete');
-});
+/**
+ * Determine if "frenzy" features are enabled for a given mode.
+ * Falls back to true if a mode-specific config isn't present.
+ * @param {'classic'|'survival'|'colourrush'} mode
+ * @returns {boolean}
+ */
+// No global frenzy mode enable/disable in this project. Classic and Survival
+// manage their own behavior internally; Colour Rush is configured via COLOUR_RUSH_CONFIG.
 
-// ============================================================================
-// EXPORTS
-// ============================================================================
+/* ===========================================================================
+   EXPORTS (if using modules in other files)
+   ===========================================================================*/
 
-export { 
-  cleanupGameTitle,
-  getFrenzyConfig,
-  isFrenzyEnabled,
-  validateFrenzyConfig,
-  FRENZY_CONFIG,
-  GAME_CONFIG
+export {
+  showMainMenu,
+  validateAllConfigs
 };

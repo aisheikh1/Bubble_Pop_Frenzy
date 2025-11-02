@@ -11,6 +11,7 @@ import { BubbleSpawnConfig } from './BubbleSpawnConfig.js';
 // Import game mode implementations
 import { ClassicMode } from './ClassicMode.js';
 import { SurvivalMode } from './SurvivalMode.js';
+import { ColourRushMode } from './ColourRushMode.js';
 
 /* ---------------------------
    Compatibility shim for effects
@@ -25,7 +26,8 @@ if (effects && typeof effects.add !== 'function' && typeof effects.spawn === 'fu
 
 const MODE_REGISTRY = {
   classic: null,
-  survival: null
+  survival: null,
+  colourrush: null  // ✅ FIX 1: Added colourrush to registry
 };
 
 let activeMode = null;
@@ -142,7 +144,7 @@ async function startCountdown(config) {
 
 /**
  * Register a game mode implementation
- * @param {string} key - Mode identifier (e.g., 'classic', 'survival')
+ * @param {string} key - Mode identifier (e.g., 'classic', 'survival', 'colourrush')
  * @param {Object} ModeClass - Mode class constructor
  */
 function registerMode(key, ModeClass) {
@@ -165,6 +167,9 @@ function getMode(key) {
 function initializeModes() {
   registerMode('classic', ClassicMode);
   registerMode('survival', SurvivalMode);
+  registerMode('colourrush', ColourRushMode);  // ✅ FIX 2: Register ColourRushMode
+  
+  console.log('[game.js] Registered modes:', Object.keys(MODE_REGISTRY));
 }
 
 /**
@@ -194,6 +199,7 @@ function activateMode(modeKey, config) {
   try {
     activeMode = new ModeClass(config);
     activeModeKey = modeKey;
+    console.log(`[game.js] Activated mode: ${modeKey}`);
     return activeMode;
   } catch (err) {
     console.error(`[game.js] Error creating mode ${modeKey}:`, err);
@@ -208,7 +214,7 @@ function activateMode(modeKey, config) {
 /**
  * Prepare and start a game mode
  * @param {Object} config - Game configuration object
- * @param {string} modeKey - Mode identifier ('classic' or 'survival')
+ * @param {string} modeKey - Mode identifier ('classic', 'survival', or 'colourrush')
  */
 async function startGame(config, modeKey) {
   gameConfig = config;
@@ -370,6 +376,13 @@ async function showModeSelection() {
           await hideMessageBox(); 
           startGame(gameConfig, 'survival'); 
         } 
+      },
+      { 
+        label: 'Colour Rush',  // ✅ FIX 3: Added Colour Rush button
+        action: async () => { 
+          await hideMessageBox(); 
+          startGame(gameConfig, 'colourrush'); 
+        } 
       }
     ]
   );
@@ -395,7 +408,7 @@ export {
   initializeModes,
   showModeSelection,
   
-  // Shared utilities (already exported inline above)
+  // Shared utilities
   spawnPointsText,
   setBackButtonVisible,
   setRestartButtonVisible,
