@@ -391,10 +391,6 @@ export class ClassicMode {
     
     this.gamePaused = !this.gamePaused;
     
-    if (this.config?.pauseButton) {
-      this.config.pauseButton.toggle();
-    }
-    
     if (this.gamePaused) {
       showPauseOverlay();
     } else {
