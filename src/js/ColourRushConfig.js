@@ -6,11 +6,18 @@
  * Centralized configuration for all Colour Rush mode settings
  */
 export const COLOUR_RUSH_CONFIG = {
-  // Round settings
-  rounds: {
-    total: 3,
-    duration: 60000,
-    transitionDuration: 3000
+  // Timer settings
+  timer: {
+    initial: 60,              // Starting time in seconds
+    duration: 60000           // Starting time in milliseconds (for compatibility)
+  },
+  
+  // Time adjustment settings
+  timeAdjustments: {
+    correctAdd: 0.5,          // Seconds added per correct pop
+    correctBonusEvery: 2,     // Award bonus after every N correct pops
+    correctBonusAdd: 1.0,     // Bonus seconds added
+    wrongSubtract: 1.0        // Seconds removed per wrong pop
   },
   
   // Scoring system
@@ -168,14 +175,44 @@ export const COLOUR_RUSH_CONFIG = {
 export function validateConfig() {
   const errors = [];
   
-  if (COLOUR_RUSH_CONFIG.rounds.total < 1) {
-    errors.push('rounds.total must be at least 1');
+  // Validate timer configuration
+  if (!COLOUR_RUSH_CONFIG.timer) {
+    errors.push('Missing timer configuration');
   }
   
+  if (COLOUR_RUSH_CONFIG.timer && typeof COLOUR_RUSH_CONFIG.timer.initial !== 'number') {
+    errors.push('timer.initial must be a number');
+  }
+  
+  // Validate time adjustments
+  if (!COLOUR_RUSH_CONFIG.timeAdjustments) {
+    errors.push('Missing timeAdjustments configuration');
+  }
+  
+  if (COLOUR_RUSH_CONFIG.timeAdjustments) {
+    if (typeof COLOUR_RUSH_CONFIG.timeAdjustments.correctAdd !== 'number' || COLOUR_RUSH_CONFIG.timeAdjustments.correctAdd < 0) {
+      errors.push('timeAdjustments.correctAdd must be a positive number');
+    }
+    
+    if (typeof COLOUR_RUSH_CONFIG.timeAdjustments.correctBonusEvery !== 'number' || COLOUR_RUSH_CONFIG.timeAdjustments.correctBonusEvery < 1) {
+      errors.push('timeAdjustments.correctBonusEvery must be a positive integer');
+    }
+    
+    if (typeof COLOUR_RUSH_CONFIG.timeAdjustments.correctBonusAdd !== 'number' || COLOUR_RUSH_CONFIG.timeAdjustments.correctBonusAdd < 0) {
+      errors.push('timeAdjustments.correctBonusAdd must be a positive number');
+    }
+    
+    if (typeof COLOUR_RUSH_CONFIG.timeAdjustments.wrongSubtract !== 'number' || COLOUR_RUSH_CONFIG.timeAdjustments.wrongSubtract < 0) {
+      errors.push('timeAdjustments.wrongSubtract must be a positive number');
+    }
+  }
+  
+  // Validate colors
   if (COLOUR_RUSH_CONFIG.colors.easy.length < 2) {
     errors.push('colors.easy must have at least 2 colors');
   }
   
+  // Validate difficulty levels
   for (let i = 1; i <= 5; i++) {
     if (!COLOUR_RUSH_CONFIG.difficulty[i]) {
       errors.push('difficulty level ' + i + ' is missing');

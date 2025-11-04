@@ -272,16 +272,55 @@ canvas.canvas-appearing {
    COLOUR RUSH MODE - TARGET COLOR DISPLAY
    ============================================================================ */
 
+/* Colour Rush Mode - UI Grid Layout */
+.game-info[data-mode="colourrush"] {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: auto auto;
+  gap: 0.75rem;
+  align-items: start;
+  padding: 0.75rem;
+  width: 100%;
+  max-width: 500px;
+  box-sizing: border-box;
+}
+
+/* Ensure UI components scale properly */
+.combo-meter {
+  grid-column: 1;
+  grid-row: 1;
+  margin-bottom: 0; /* Remove default margin */
+}
+
 .target-color-display {
+  grid-column: 2;
+  grid-row: 1;
+  margin-bottom: 0; /* Remove default margin */
+  padding: 0.5rem; /* Reduce padding for compact layout */
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 0.5rem;
-  margin-bottom: 1rem;
-  padding: 1rem;
   background: rgba(255, 255, 255, 0.1);
   border-radius: 15px;
   backdrop-filter: blur(5px);
+}
+
+/* Grid positioning for score and timer in Colour Rush */
+.game-info[data-mode="colourrush"] #scoreDisplay {
+  grid-column: 1;
+  grid-row: 2;
+  text-align: left;
+  font-size: clamp(0.9rem, 4vw, 1.1rem);
+  margin: 0;
+}
+
+.game-info[data-mode="colourrush"] #classicTimerDisplay {
+  grid-column: 2;
+  grid-row: 2;
+  text-align: right;
+  font-size: clamp(0.9rem, 4vw, 1.1rem);
+  margin: 0;
 }
 
 .target-color-label {
@@ -482,6 +521,15 @@ canvas.canvas-appearing {
 
 /* Smaller screens */
 @media screen and (max-width: 400px) {
+  .game-info[data-mode="colourrush"] {
+    gap: 0.5rem;
+    padding: 0.5rem;
+  }
+  
+  .target-color-display {
+    padding: 0.25rem;
+  }
+  
   .target-bubble {
     width: 60px;
     height: 60px;
@@ -489,6 +537,10 @@ canvas.canvas-appearing {
   
   .color-name {
     font-size: 1rem;
+  }
+  
+  .combo-meter {
+    padding: 0.25rem;
   }
   
   .combo-label {
@@ -512,6 +564,12 @@ canvas.canvas-appearing {
   }
   
   /* Compact Colour Rush components for landscape */
+  .game-info[data-mode="colourrush"] {
+    gap: 0.5rem;
+    padding: 0.5rem;
+    font-size: 0.85rem;
+  }
+  
   .target-color-display {
     padding: 0.5rem;
     margin-bottom: 0.5rem;

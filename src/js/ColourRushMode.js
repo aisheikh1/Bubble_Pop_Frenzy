@@ -35,8 +35,10 @@ export class ColourRushMode {
     // Game state
     this.gameState = 'idle'; // 'idle' | 'playing' | 'paused' | 'ended'
     this.isPaused = false;
-    this.currentRound = 1;
-    this.maxRounds = COLOUR_RUSH_CONFIG.rounds.total;
+    
+    // Timer system
+    this.timeRemaining = 60;         // Timer in seconds
+    this.correctPopCount = 0;        // Cumulative correct pops for bonus tracking
     
     // Color system
     this.targetColor = null; // { name: string, hex: string }
@@ -52,9 +54,7 @@ export class ColourRushMode {
     this.totalTargetBubbles = 0; // Spawned in current color period
     this.poppedTargetBubbles = 0;
     
-    // Round tracking
-    this.roundStartTime = 0;
-    this.roundDuration = COLOUR_RUSH_CONFIG.rounds.duration;
+    // Score tracking
     this.totalScore = 0;
     this.totalPops = 0;
     this.correctPops = 0;
@@ -96,7 +96,8 @@ export class ColourRushMode {
     // Reset state
     this.gameState = 'idle';
     this.isPaused = false;
-    this.currentRound = 1;
+    this.timeRemaining = COLOUR_RUSH_CONFIG.timer.initial;
+    this.correctPopCount = 0;
     this.totalScore = 0;
     this.totalPops = 0;
     this.correctPops = 0;
@@ -127,6 +128,8 @@ export class ColourRushMode {
     // Setup UI displays
     if (this.config.gameInfo) {
       this.config.gameInfo.style.display = 'flex';
+      // Mark game info with mode for CSS targeting
+      this.config.gameInfo.setAttribute('data-mode', 'colourrush');
     }
     
     // Setup mode-specific display
@@ -157,6 +160,9 @@ export class ColourRushMode {
     // Select initial target color
     this.selectNewTargetColor();
     
+    // Setup UI layout
+    this.setupUILayout();
+    
     // Show UI components
     this.targetColorDisplay.show();
     this.comboMeter.show();
@@ -173,8 +179,13 @@ export class ColourRushMode {
   startGame() {
     console.log('[ColourRushMode] Starting game...');
     
+    if (!this.gamePrepared && this.gameState === 'idle') {
+      // If prepareGame was called, gameState should be 'idle'
+      // Mark as prepared
+      this.gamePrepared = true;
+    }
+    
     this.gameState = 'playing';
-    this.roundStartTime = Date.now();
     this.lastColorChangeTime = Date.now();
     this.lastFrameTime = performance.now();
     
@@ -186,7 +197,7 @@ export class ColourRushMode {
     // Start game loop
     this.startGameLoop();
     
-    console.log('[ColourRushMode] Game started - Round', this.currentRound);
+    console.log('[ColourRushMode] Game started');
   }
   
   /**
@@ -244,27 +255,24 @@ export class ColourRushMode {
   endGame() {
     console.log('[ColourRushMode] Ending game...');
     
-    this.gameState = 'ended';
-    
-    // Stop game loop
-    if (this.animationId) {
-      cancelAnimationFrame(this.animationId);
-      this.animationId = null;
-    }
-    
-    // Calculate final stats
-    const accuracy = this.totalPops > 0 
-      ? Math.round((this.correctPops / this.totalPops) * 100)
-      : 0;
-    
-    const stars = this.calculateStarRating();
-    
-    // Hide UI components
-    this.targetColorDisplay.hide();
-    this.comboMeter.hide();
-    
-    // Show results
-    this.showFinalResults(stars, accuracy);
+    this.cleanup();
+
+    // Simple final score display
+    showMessageBox(
+      "Time's Up!",
+      `Final Score: ${this.totalScore} points`,
+      [{ 
+        label: 'Main Menu', 
+        action: () => {
+          if (typeof goToMainMenu === 'function') {
+            goToMainMenu();
+          } else {
+            // Fallback
+            import('./game.js').then(module => module.goToMainMenu());
+          }
+        }
+      }]
+    );
   }
   
   /**
@@ -272,6 +280,14 @@ export class ColourRushMode {
    */
   cleanup() {
     console.log('[ColourRushMode] Cleaning up...');
+    
+    // Update game state
+    this.gameState = 'ended';
+    this.isPaused = false;
+    
+    // Reset timer state
+    this.timeRemaining = 0;
+    this.correctPopCount = 0;
     
     // Stop game loop
     if (this.animationId) {
@@ -284,13 +300,19 @@ export class ColourRushMode {
     
     // Cleanup UI components
     if (this.targetColorDisplay) {
-      this.targetColorDisplay.cleanup();
-      this.targetColorDisplay = null;
+      this.targetColorDisplay.hide();
     }
     
     if (this.comboMeter) {
-      this.comboMeter.cleanup();
-      this.comboMeter = null;
+      this.comboMeter.hide();
+    }
+    
+    // Reset game info display style
+    if (this.config.gameInfo) {
+      this.config.gameInfo.style.display = 'flex'; // Reset to default
+      this.config.gameInfo.style.gridTemplateColumns = '';
+      this.config.gameInfo.style.gridTemplateRows = '';
+      this.config.gameInfo.removeAttribute('data-mode');
     }
     
     // Reset displays
@@ -332,10 +354,22 @@ export class ColourRushMode {
    * Update game state
    */
   update(deltaTime, now) {
-    // Check round timer
-    const elapsed = now - this.roundStartTime;
-    if (elapsed >= this.roundDuration) {
-      this.handleRoundEnd();
+    // Validate config
+    if (!COLOUR_RUSH_CONFIG.timeAdjustments) {
+      console.error('[ColourRushMode] Missing timeAdjustments config');
+      this.endGame();
+      return;
+    }
+    
+    // Update timer (deltaTime is in seconds)
+    this.timeRemaining -= deltaTime;
+    
+    // Clamp timer to 0 minimum
+    this.timeRemaining = Math.max(0, this.timeRemaining);
+    
+    // Check for game over
+    if (this.timeRemaining <= 0) {
+      this.endGame();
       return;
     }
     
@@ -728,6 +762,28 @@ export class ColourRushMode {
     // Update combo
     this.updateCombo(true);
     
+    // Add time adjustments
+    const config = COLOUR_RUSH_CONFIG.timeAdjustments;
+    
+    // Add base time bonus
+    this.timeRemaining += config.correctAdd;
+    
+    // Increment correct pop counter
+    this.correctPopCount++;
+    
+    // Check for bonus (every N correct pops)
+    if (this.correctPopCount % config.correctBonusEvery === 0) {
+      this.timeRemaining += config.correctBonusAdd;
+      
+      // Spawn visual feedback for bonus
+      effects.spawn(new FloatingTextEffect(
+        bubble.x, 
+        bubble.y - 40, 
+        '+' + config.correctBonusAdd + 's BONUS!', 
+        '#FFD700'
+      ));
+    }
+    
     // Notify spawn config
     BubbleSpawnConfig.notifyBubblePopped(bubble.type, true);
     
@@ -753,6 +809,25 @@ export class ColourRushMode {
     // Break combo
     this.updateCombo(false);
     
+    // Add time penalty
+    const config = COLOUR_RUSH_CONFIG.timeAdjustments;
+    
+    this.timeRemaining -= config.wrongSubtract;
+    
+    // Ensure timer doesn't go negative
+    this.timeRemaining = Math.max(0, this.timeRemaining);
+    
+    // Spawn visual feedback
+    effects.spawn(new FloatingTextEffect(
+      bubble.x, 
+      bubble.y - 40, 
+      '-' + config.wrongSubtract + 's', 
+      '#FF0000'
+    ));
+    
+    // IMPORTANT: Do NOT reset correctPopCount here
+    // Wrong pops should not interfere with the bonus counter
+    
     // Notify spawn config
     BubbleSpawnConfig.notifyBubblePopped(bubble.type, false);
     
@@ -769,13 +844,14 @@ export class ColourRushMode {
      ===========================================================================*/
   
   /**
-   * Calculate current difficulty level
+   * Calculate current difficulty level based on time elapsed
    */
   calculateDifficultyLevel() {
-    const elapsed = (Date.now() - this.roundStartTime) / 1000;
-    const levelWithinRound = Math.floor(elapsed / 20); // Level up every 20s
+    // Calculate elapsed time based on time remaining (60s - timeRemaining)
+    const elapsed = COLOUR_RUSH_CONFIG.timer.initial - this.timeRemaining;
+    const level = Math.floor(elapsed / 15) + 1; // Level up every 15s of elapsed time
     
-    return Math.min(this.currentRound + levelWithinRound, 5);
+    return Math.min(level, 5);
   }
   
   /**
@@ -803,71 +879,6 @@ export class ColourRushMode {
      ===========================================================================*/
   
   /**
-   * Handle round end
-   */
-  async handleRoundEnd() {
-    console.log('[ColourRushMode] Round', this.currentRound, 'ended');
-    
-    // Stop game loop temporarily
-    if (this.animationId) {
-      cancelAnimationFrame(this.animationId);
-      this.animationId = null;
-    }
-    
-    this.gameState = 'idle';
-    
-    // Check perfect round
-    if (this.checkPerfectRound()) {
-      this.awardPerfectRound();
-    }
-    
-    if (this.currentRound < this.maxRounds) {
-      // Show round transition
-      await this.showRoundTransition();
-      
-      // Start next round
-      this.currentRound++;
-      this.roundStartTime = Date.now();
-      this.lastColorChangeTime = Date.now();
-      this.bubbles = [];
-      this.consecutiveCorrect = 0;
-      this.comboMultiplier = 1.0;
-      
-      // Select new color
-      this.selectNewTargetColor();
-      
-      // Update UI
-      this.updateUI();
-      
-      // Resume game
-      this.gameState = 'playing';
-      this.lastFrameTime = performance.now();
-      this.startGameLoop();
-      
-      console.log('[ColourRushMode] Round', this.currentRound, 'started');
-    } else {
-      // Game over
-      this.endGame();
-    }
-  }
-  
-  /**
-   * Show round transition screen
-   */
-  async showRoundTransition() {
-    return new Promise((resolve) => {
-      showMessageBox(
-        `Round ${this.currentRound} Complete!`,
-        `Score: ${this.totalScore}\nStarting Round ${this.currentRound + 1}...`,
-        []
-      );
-      
-      setTimeout(async () => {
-        await hideMessageBox();
-        resolve();
-      }, COLOUR_RUSH_CONFIG.rounds.transitionDuration);
-    });
-  }
   
   /* ===========================================================================
      RESULTS & RATINGS
@@ -890,66 +901,77 @@ export class ColourRushMode {
     return 0;
   }
   
-  /**
-   * Show final results screen
-   */
-  showFinalResults(stars, accuracy) {
-    const starDisplay = '⭐'.repeat(stars) || 'No Stars';
-    
-    showMessageBox(
-      'Colour Rush Complete!',
-      `Final Score: ${this.totalScore}\nAccuracy: ${accuracy}%\nRating: ${starDisplay}`,
-      [
-        { 
-          label: 'Play Again', 
-          action: async () => {
-            await hideMessageBox();
-            await this.restart();
-            // Note: Countdown will be handled by game.js after restart
-          }
-        },
-        { 
-          label: 'Main Menu', 
-          action: async () => {
-            await hideMessageBox();
-            if (typeof goToMainMenu === 'function') {
-              goToMainMenu();
-            } else {
-              // Fallback: Import and call from game.js
-              const { goToMainMenu: menuFn } = await import('./game.js');
-              menuFn();
-            }
-          }
-        }
-      ]
-    );
-  }
-  
   /* ===========================================================================
      UI UPDATES
      ===========================================================================*/
   
   /**
+   * Setup UI layout for 2x2 grid
+   */
+  setupUILayout() {
+    // Configure game info container as 2x2 grid
+    const gameInfo = this.config.gameInfo;
+    gameInfo.style.display = 'grid';
+    gameInfo.style.gridTemplateColumns = '1fr 1fr';
+    gameInfo.style.gridTemplateRows = 'auto auto';
+    gameInfo.style.gap = '0.75rem';
+    gameInfo.style.alignItems = 'start';
+    gameInfo.style.padding = '0.75rem';
+    gameInfo.style.width = '100%';
+    gameInfo.style.maxWidth = '500px';
+    gameInfo.style.boxSizing = 'border-box';
+    
+    // Position combo meter (top-left)
+    if (this.comboMeter && this.comboMeter.element) {
+      this.comboMeter.element.style.gridColumn = '1';
+      this.comboMeter.element.style.gridRow = '1';
+    }
+    
+    // Position target color display (top-right)
+    if (this.targetColorDisplay && this.targetColorDisplay.element) {
+      this.targetColorDisplay.element.style.gridColumn = '2';
+      this.targetColorDisplay.element.style.gridRow = '1';
+    }
+    
+    // Score display (bottom-left) - positioned in updateUI()
+    // Timer display (bottom-right) - positioned in updateUI()
+  }
+  
+  /**
    * Update UI displays
    */
   updateUI() {
-    // Update score
-    if (this.config.scoreDisplay) {
-      this.config.scoreDisplay.textContent = `Score: ${this.totalScore}`;
+    // Update combo meter (top-left)
+    if (this.comboMeter) {
+      const multiplier = this.comboMultiplier;
+      this.comboMeter.update(this.consecutiveCorrect, multiplier);
     }
     
-    // Calculate and display accuracy
-    const accuracy = this.totalPops > 0 
-      ? Math.round((this.correctPops / this.totalPops) * 100)
-      : 100;
+    // Target color display (top-right) is updated in selectNewTargetColor
     
-    // Update round timer (reuse classic timer display)
+    // Update score display (bottom-left)
+    if (this.config.scoreDisplay) {
+      this.config.scoreDisplay.textContent = `Score: ${this.totalScore}`;
+      this.config.scoreDisplay.style.gridColumn = '1';
+      this.config.scoreDisplay.style.gridRow = '2';
+      this.config.scoreDisplay.style.display = 'block';
+    }
+    
+    // Update timer display (bottom-right)
+    const timeSeconds = Math.ceil(this.timeRemaining);
     if (this.config.classicTimerDisplay) {
+      this.config.classicTimerDisplay.textContent = `Time: ${timeSeconds}s`;
+      this.config.classicTimerDisplay.style.gridColumn = '2';
+      this.config.classicTimerDisplay.style.gridRow = '2';
       this.config.classicTimerDisplay.style.display = 'block';
-      const timeRemaining = Math.ceil(
-        (this.roundDuration - (Date.now() - this.roundStartTime)) / 1000
-      );
-      this.config.classicTimerDisplay.textContent = `Round ${this.currentRound}/${this.maxRounds} | Time: ${Math.max(0, timeRemaining)}s | Acc: ${accuracy}%`;
+    }
+    
+    // Hide unused displays
+    if (this.config.modeDisplay) {
+      this.config.modeDisplay.style.display = 'none';
+    }
+    if (this.config.survivalStatsDisplay) {
+      this.config.survivalStatsDisplay.style.display = 'none';
     }
   }
   
