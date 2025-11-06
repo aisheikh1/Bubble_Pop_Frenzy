@@ -1,5 +1,6 @@
 // src/js/ColourRushConfig.js
 // Configuration constants for Colour Rush game mode
+// UPDATED: Changed targetBubbleSize to targetCircleSize for new compact design
 
 /**
  * COLOUR_RUSH_CONFIG
@@ -144,8 +145,9 @@ export const COLOUR_RUSH_CONFIG = {
   },
   
   // UI configuration
+  // UPDATED: Changed targetBubbleSize to targetCircleSize for compact design
   ui: {
-    targetBubbleSize: 80,
+    targetCircleSize: 16,      // Small circle indicator size (changed from targetBubbleSize: 80)
     comboMeterMaxWidth: 100,
     colorChangeFadeTime: 500,
     perfectRoundDisplayTime: 2000
@@ -216,6 +218,13 @@ export function validateConfig() {
   for (let i = 1; i <= 5; i++) {
     if (!COLOUR_RUSH_CONFIG.difficulty[i]) {
       errors.push('difficulty level ' + i + ' is missing');
+    }
+  }
+  
+  // Validate UI configuration (updated for new compact design)
+  if (COLOUR_RUSH_CONFIG.ui) {
+    if (typeof COLOUR_RUSH_CONFIG.ui.targetCircleSize !== 'number' || COLOUR_RUSH_CONFIG.ui.targetCircleSize <= 0) {
+      errors.push('ui.targetCircleSize must be a positive number');
     }
   }
   

@@ -107,16 +107,14 @@ export class ColourRushMode {
     this.comboMultiplier = 1.0;
     this.usedColors = [];
     
-    // Initialize UI components
-    const gameContainer = document.querySelector('.game-container');
+    // Get UI containers
+    const gameInfo = this.config.gameInfo;
     
-    // Create target color display
+    // Create UI components - pass gameInfo for proper grid positioning
     if (!this.targetColorDisplay) {
-      this.targetColorDisplay = new TargetColorDisplay(gameContainer);
+      this.targetColorDisplay = new TargetColorDisplay(gameInfo);
     }
     
-    // Create combo meter
-    const gameInfo = this.config.gameInfo;
     if (!this.comboMeter) {
       this.comboMeter = new ComboMeter(gameInfo);
     }
@@ -126,10 +124,10 @@ export class ColourRushMode {
     this.config.canvasManager.clear();
     
     // Setup UI displays
-    if (this.config.gameInfo) {
-      this.config.gameInfo.style.display = 'flex';
+    if (gameInfo) {
+      gameInfo.style.display = 'flex';
       // Mark game info with mode for CSS targeting
-      this.config.gameInfo.setAttribute('data-mode', 'colourrush');
+      gameInfo.setAttribute('data-mode', 'colourrush');
     }
     
     // Setup mode-specific display
@@ -873,12 +871,6 @@ export class ColourRushMode {
       console.log('[ColourRushMode] Difficulty level:', level);
     }
   }
-  
-  /* ===========================================================================
-     ROUND MANAGEMENT
-     ===========================================================================*/
-  
-  /**
   
   /* ===========================================================================
      RESULTS & RATINGS

@@ -269,7 +269,7 @@ canvas.canvas-appearing {
 }
 
 /* ============================================================================
-   COLOUR RUSH MODE - TARGET COLOR DISPLAY
+   COLOUR RUSH MODE - TARGET COLOR DISPLAY (REVAMPED)
    ============================================================================ */
 
 /* Colour Rush Mode - UI Grid Layout */
@@ -292,19 +292,79 @@ canvas.canvas-appearing {
   margin-bottom: 0; /* Remove default margin */
 }
 
+/* REVAMPED: Compact horizontal layout with colored text and small circle */
 .target-color-display {
   grid-column: 2;
   grid-row: 1;
-  margin-bottom: 0; /* Remove default margin */
-  padding: 0.5rem; /* Reduce padding for compact layout */
+  margin-bottom: 0;
+  padding: 0.5rem 0.75rem;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;  /* Changed from column to row */
   align-items: center;
   gap: 0.5rem;
   background: rgba(255, 255, 255, 0.1);
-  border-radius: 15px;
+  border-radius: 10px;
   backdrop-filter: blur(5px);
+  justify-content: flex-start;
 }
+
+/* Updated label - now says "Target:" */
+.target-color-label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #333;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.8);
+  white-space: nowrap;
+}
+
+/* Color name text - color applied inline via JavaScript */
+.color-name {
+  font-size: 1.1rem;
+  font-weight: bold;
+  /* Color will be set dynamically to match target color */
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  transition: color 0.5s ease;
+  white-space: nowrap;
+}
+
+/* NEW: Small circle indicator (replaces 80px bubble) */
+.target-circle {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.9);
+  box-shadow: 0 0 8px currentColor;
+  transition: background-color 0.5s ease, box-shadow 0.5s ease;
+  flex-shrink: 0;  /* Prevent circle from shrinking */
+}
+
+/* Circle flash animation when color changes */
+.target-circle.color-changing {
+  animation: circleFlash 0.5s ease-out;
+}
+
+/* NEW: Compact flash animation for small circle */
+@keyframes circleFlash {
+  0% { 
+    transform: scale(1); 
+    opacity: 1;
+  }
+  50% { 
+    transform: scale(1.5); 
+    opacity: 0.6;
+  }
+  100% { 
+    transform: scale(1); 
+    opacity: 1;
+  }
+}
+
+/* REMOVED: Old bubble styles and animations are completely deleted */
+/* .target-bubble - DELETED */
+/* @keyframes targetPulse - DELETED */
+/* @keyframes colorChangeFlash - DELETED */
 
 /* Grid positioning for score and timer in Colour Rush */
 .game-info[data-mode="colourrush"] #scoreDisplay {
@@ -321,70 +381,6 @@ canvas.canvas-appearing {
   text-align: right;
   font-size: clamp(0.9rem, 4vw, 1.1rem);
   margin: 0;
-}
-
-.target-color-label {
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: #333;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.8);
-}
-
-.target-bubble {
-  width: 80px;
-  height: 80px;
-  border-radius: 50%;
-  border: 3px solid rgba(255, 255, 255, 0.8);
-  box-shadow: 0 0 20px currentColor;
-  transition: background-color 0.5s ease, box-shadow 0.5s ease;
-  animation: targetPulse 2s infinite ease-in-out;
-}
-
-.target-bubble.color-changing {
-  animation: colorChangeFlash 0.5s ease-out;
-}
-
-@keyframes targetPulse {
-  0%, 100% { 
-    transform: scale(1); 
-    opacity: 1;
-  }
-  50% { 
-    transform: scale(1.1); 
-    opacity: 0.9;
-  }
-}
-
-@keyframes colorChangeFlash {
-  0% { 
-    transform: scale(1); 
-    opacity: 1;
-  }
-  25% { 
-    transform: scale(1.3) rotate(10deg); 
-    opacity: 0.5;
-  }
-  50% { 
-    transform: scale(0.8) rotate(-10deg); 
-    opacity: 0.8;
-  }
-  75% { 
-    transform: scale(1.2); 
-    opacity: 0.6;
-  }
-  100% { 
-    transform: scale(1) rotate(0deg); 
-    opacity: 1;
-  }
-}
-
-.color-name {
-  font-size: 1.2rem;
-  font-weight: bold;
-  color: #222;
-  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.8);
 }
 
 /* ============================================================================
@@ -519,24 +515,32 @@ canvas.canvas-appearing {
    RESPONSIVE STYLES
    ============================================================================ */
 
-/* Smaller screens */
+/* Smaller screens - Updated for compact target display */
 @media screen and (max-width: 400px) {
   .game-info[data-mode="colourrush"] {
     gap: 0.5rem;
     padding: 0.5rem;
   }
   
+  /* Compact target display for small screens */
   .target-color-display {
-    padding: 0.25rem;
+    padding: 0.4rem 0.6rem;
+    gap: 0.4rem;
   }
   
-  .target-bubble {
-    width: 60px;
-    height: 60px;
+  .target-color-label {
+    font-size: 0.8rem;
   }
   
   .color-name {
-    font-size: 1rem;
+    font-size: 0.95rem;
+  }
+  
+  /* Smaller circle for mobile */
+  .target-circle {
+    width: 14px;
+    height: 14px;
+    border-width: 1.5px;
   }
   
   .combo-meter {
@@ -552,7 +556,7 @@ canvas.canvas-appearing {
   }
 }
 
-/* Mobile landscape orientation */
+/* Mobile landscape orientation - Updated for compact target display */
 @media screen and (max-width: 550px) and (orientation: landscape) {
   body {
     flex-direction: row;
@@ -570,18 +574,25 @@ canvas.canvas-appearing {
     font-size: 0.85rem;
   }
   
+  /* Ultra-compact target display for landscape */
   .target-color-display {
-    padding: 0.5rem;
-    margin-bottom: 0.5rem;
+    padding: 0.3rem 0.5rem;
+    gap: 0.4rem;
   }
   
-  .target-bubble {
-    width: 50px;
-    height: 50px;
+  .target-color-label {
+    font-size: 0.75rem;
   }
   
   .color-name {
-    font-size: 0.9rem;
+    font-size: 0.85rem;
+  }
+  
+  /* Smallest circle for landscape */
+  .target-circle {
+    width: 12px;
+    height: 12px;
+    border-width: 1.5px;
   }
   
   .combo-meter {
