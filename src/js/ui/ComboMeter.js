@@ -217,7 +217,7 @@ export function injectComboMeterStyles() {
     }
     
     .combo-label {
-      text-align: center;
+      text-align: left;
       font-weight: bold;
       font-size: 1rem;
       margin-bottom: 0.25rem;
