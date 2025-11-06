@@ -27,7 +27,6 @@ export class ComboMeter {
     // Create main container
     this.element = document.createElement('div');
     this.element.className = 'combo-meter';
-    this.element.style.display = 'none'; // Hidden by default
     
     // Create label
     this.labelElement = document.createElement('div');
@@ -42,7 +41,6 @@ export class ComboMeter {
     // Create fill element
     this.fillElement = document.createElement('div');
     this.fillElement.className = 'combo-fill';
-    this.fillElement.style.width = '0%';
     barContainer.appendChild(this.fillElement);
     
     this.element.appendChild(barContainer);
@@ -119,17 +117,10 @@ export class ComboMeter {
     this.currentCombo = 0;
     this.currentMultiplier = 1.0;
     
-    // Animate reset
-    this.fillElement.style.transition = 'width 0.2s ease-out, background 0.2s ease-out';
     this.fillElement.style.width = '0%';
     this.fillElement.classList.remove('tier-1', 'tier-2', 'tier-3');
     
     this.labelElement.textContent = 'Combo: 1.0x';
-    
-    // Reset transition after animation
-    setTimeout(() => {
-      this.fillElement.style.transition = 'width 0.3s ease, background 0.3s ease';
-    }, 200);
   }
   
   /**
@@ -195,161 +186,4 @@ export class ComboMeter {
     
     console.log('[ComboMeter] Cleaned up');
   }
-}
-
-/**
- * Add required CSS styles dynamically if not in stylesheet
- */
-export function injectComboMeterStyles() {
-  const styleId = 'combo-meter-styles';
-  
-  // Check if styles already injected
-  if (document.getElementById(styleId)) return;
-  
-  const styles = `
-    .combo-meter {
-      width: 100%;
-      margin-bottom: 0.5rem;
-      padding: 0.5rem;
-      background: rgba(255, 255, 255, 0.1);
-      border-radius: 10px;
-      backdrop-filter: blur(5px);
-    }
-    
-    .combo-label {
-      text-align: left;
-      font-weight: bold;
-      font-size: 1rem;
-      margin-bottom: 0.25rem;
-      color: #222;
-      text-shadow: 0 1px 2px rgba(255, 255, 255, 0.8);
-      transition: transform 0.2s ease;
-    }
-    
-    .combo-meter.pulse .combo-label {
-      animation: labelPulse 0.3s ease-out;
-    }
-    
-    @keyframes labelPulse {
-      0%, 100% { transform: scale(1); }
-      50% { transform: scale(1.2); }
-    }
-    
-    .combo-bar {
-      width: 100%;
-      height: 24px;
-      background: rgba(0, 0, 0, 0.2);
-      border-radius: 12px;
-      overflow: hidden;
-      box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
-      border: 2px solid rgba(255, 255, 255, 0.3);
-    }
-    
-    .combo-fill {
-      height: 100%;
-      background: linear-gradient(90deg, #4CAF50, #8BC34A);
-      transition: width 0.3s ease, background 0.3s ease;
-      border-radius: 10px;
-      box-shadow: 0 0 10px rgba(76, 175, 80, 0.6);
-      position: relative;
-    }
-    
-    /* Tier 1: 3+ combo - Yellow/Lime */
-    .combo-fill.tier-1 {
-      background: linear-gradient(90deg, #CDDC39, #FFEB3B);
-      box-shadow: 0 0 15px rgba(205, 220, 57, 0.8);
-    }
-    
-    /* Tier 2: 5+ combo - Orange/Gold */
-    .combo-fill.tier-2 {
-      background: linear-gradient(90deg, #FF9800, #FFC107);
-      box-shadow: 0 0 20px rgba(255, 152, 0, 0.9);
-    }
-    
-    /* Tier 3: 10+ combo - Rainbow/Epic */
-    .combo-fill.tier-3 {
-      background: linear-gradient(90deg, 
-        #FF0080, #FF00FF, #8000FF, #0080FF, 
-        #00FF80, #FFFF00, #FF8000, #FF0080
-      );
-      background-size: 200% 100%;
-      animation: rainbowFlow 2s linear infinite;
-      box-shadow: 0 0 25px rgba(255, 0, 128, 1);
-    }
-    
-    @keyframes rainbowFlow {
-      0% { background-position: 0% 50%; }
-      100% { background-position: 200% 50%; }
-    }
-    
-    /* Shatter animation */
-    .combo-meter.shatter .combo-fill {
-      animation: shatterEffect 0.5s ease-out;
-    }
-    
-    @keyframes shatterEffect {
-      0% { 
-        transform: scale(1) rotate(0deg); 
-        opacity: 1; 
-      }
-      25% { 
-        transform: scale(1.1) rotate(5deg); 
-        opacity: 0.8; 
-      }
-      50% { 
-        transform: scale(0.9) rotate(-5deg); 
-        opacity: 0.5; 
-      }
-      75% { 
-        transform: scale(1.05) rotate(3deg); 
-        opacity: 0.3; 
-      }
-      100% { 
-        transform: scale(0) rotate(0deg); 
-        opacity: 0; 
-      }
-    }
-    
-    /* Glow effect when active */
-    .combo-fill::after {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: -100%;
-      width: 50%;
-      height: 100%;
-      background: linear-gradient(90deg, 
-        transparent, 
-        rgba(255, 255, 255, 0.4), 
-        transparent
-      );
-      animation: shimmer 2s infinite;
-    }
-    
-    @keyframes shimmer {
-      0% { left: -100%; }
-      50%, 100% { left: 200%; }
-    }
-    
-    /* Responsive sizing */
-    @media screen and (max-width: 400px) {
-      .combo-label {
-        font-size: 0.9rem;
-      }
-      
-      .combo-bar {
-        height: 20px;
-      }
-    }
-  `;
-  
-  const styleElement = document.createElement('style');
-  styleElement.id = styleId;
-  styleElement.textContent = styles;
-  document.head.appendChild(styleElement);
-}
-
-// Auto-inject styles when module loads
-if (typeof document !== 'undefined') {
-  injectComboMeterStyles();
 }
