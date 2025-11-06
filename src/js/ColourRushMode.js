@@ -17,7 +17,8 @@ import {
   setPauseButtonVisible,
   showPauseOverlay,
   hidePauseOverlay,
-  spawnPointsText
+  spawnPointsText,
+  goToMainMenu  // ✅ FIX #8: Import at module level like Classic/Survival
 } from './game.js';
 import { BubbleSpawnConfig } from './BubbleSpawnConfig.js';
 import { COLOUR_RUSH_CONFIG } from './ColourRushConfig.js';
@@ -35,8 +36,10 @@ export class ColourRushMode {
     // Game state
     this.gameState = 'idle'; // 'idle' | 'playing' | 'paused' | 'ended'
     this.isPaused = false;
+    this.gameActive = false;      // ✅ Added for consistency with Classic/Survival
+    this.gamePrepared = false;    // ✅ Added for consistency with Classic/Survival
     
-    // Timer system
+    // Timer system - ✅ FIX #7: Use performance.now() consistently
     this.timeRemaining = 60;         // Timer in seconds
     this.correctPopCount = 0;        // Cumulative correct pops for bonus tracking
     
@@ -44,7 +47,7 @@ export class ColourRushMode {
     this.targetColor = null; // { name: string, hex: string }
     this.colorChangeTimer = 0;
     this.colorChangeInterval = COLOUR_RUSH_CONFIG.difficulty[1].colorChangeInterval;
-    this.lastColorChangeTime = 0;
+    this.lastColorChangeTime = 0;  // Will use performance.now()
     this.availableColors = [];
     this.usedColors = [];
     
@@ -89,13 +92,15 @@ export class ColourRushMode {
   
   /**
    * Prepare game for start - setup UI and reset state
+   * Called before countdown starts
    */
   async prepareGame() {
     console.log('[ColourRushMode] Preparing game...');
     
-    // Reset state
+    // Reset game state
     this.gameState = 'idle';
     this.isPaused = false;
+    this.gameActive = false;      // Reset active flag
     this.timeRemaining = COLOUR_RUSH_CONFIG.timer.initial;
     this.correctPopCount = 0;
     this.totalScore = 0;
@@ -106,22 +111,38 @@ export class ColourRushMode {
     this.consecutiveCorrect = 0;
     this.comboMultiplier = 1.0;
     this.usedColors = [];
+    this.difficultyLevel = 1;
+    this.speedMultiplier = 1.0;
+    this.spawnInterval = 1000;
+    this.bubbleRadiusScale = 1.0;
+    
+    // ✅ FIX #2: Reset spawn state like Classic/Survival
+    BubbleSpawnConfig.resetSpawnState();
+    
+    // ✅ FIX #3: Reset pause button like Classic/Survival
+    if (this.config?.pauseButton) {
+      this.config.pauseButton.reset();
+    }
+    
+    hidePauseOverlay();
     
     // Get UI containers
     const gameInfo = this.config.gameInfo;
     
-    // Create UI components - pass gameInfo for proper grid positioning
+    // ✅ IMPROVED: Reuse existing UI components or create new ones
     if (!this.targetColorDisplay) {
       this.targetColorDisplay = new TargetColorDisplay(gameInfo);
+    } else {
+      // Reset existing component
+      this.targetColorDisplay.hide();
     }
     
     if (!this.comboMeter) {
       this.comboMeter = new ComboMeter(gameInfo);
+    } else {
+      // Reset existing component
+      this.comboMeter.hide();
     }
-    
-    // Setup canvas
-    this.config.canvasManager.show();
-    this.config.canvasManager.clear();
     
     // Setup UI displays
     if (gameInfo) {
@@ -133,6 +154,7 @@ export class ColourRushMode {
     // Setup mode-specific display
     if (this.config.modeDisplay) {
       this.config.modeDisplay.textContent = 'Colour Rush';
+      this.config.modeDisplay.style.display = 'inline';
     }
     
     // Hide classic/survival specific displays
@@ -168,29 +190,47 @@ export class ColourRushMode {
     // Update UI
     this.updateUI();
     
+    // ✅ FIX #6: Use showWithAnimation() like Classic/Survival
+    await this.config.canvasManager.showWithAnimation();
+    
+    // ✅ Show control buttons (moved here from startGame for consistency)
+    setBackButtonVisible(true);
+    setPauseButtonVisible(true);
+    setRestartButtonVisible(true);
+    
+    // ✅ FIX #5: Set gamePrepared flag here like Classic/Survival
+    this.gamePrepared = true;
+    
     console.log('[ColourRushMode] Game prepared');
   }
   
   /**
    * Start the game after countdown
+   * Called by parent game.js after countdown completes
    */
   startGame() {
     console.log('[ColourRushMode] Starting game...');
     
-    if (!this.gamePrepared && this.gameState === 'idle') {
-      // If prepareGame was called, gameState should be 'idle'
-      // Mark as prepared
-      this.gamePrepared = true;
+    // ✅ Validation check like Classic/Survival
+    if (!this.gamePrepared) {
+      console.warn('[ColourRushMode] Game not prepared. Call prepareGame first.');
+      return;
     }
     
+    // Set game state
     this.gameState = 'playing';
-    this.lastColorChangeTime = Date.now();
+    this.gameActive = true;
+    this.isPaused = false;
+    
+    // ✅ FIX #7: Use performance.now() consistently for all timing
+    this.lastColorChangeTime = performance.now();
     this.lastFrameTime = performance.now();
     
-    // Show control buttons
-    setBackButtonVisible(true);
-    setPauseButtonVisible(true);
-    setRestartButtonVisible(true);
+    // ✅ Cancel any existing animation frame
+    if (this.animationId) {
+      cancelAnimationFrame(this.animationId);
+      this.animationId = null;
+    }
     
     // Start game loop
     this.startGameLoop();
@@ -202,7 +242,7 @@ export class ColourRushMode {
    * Toggle pause state
    */
   pause() {
-    if (this.gameState !== 'playing' && !this.isPaused) return;
+    if (!this.gameActive || !this.gamePrepared) return;
     
     this.isPaused = !this.isPaused;
     
@@ -229,22 +269,14 @@ export class ColourRushMode {
   async restart() {
     console.log('[ColourRushMode] Restarting game...');
     
-    // Stop current game
-    if (this.animationId) {
-      cancelAnimationFrame(this.animationId);
-      this.animationId = null;
-    }
+    // Cleanup current game state
+    this.cleanup();
     
-    // Clear bubbles
-    this.bubbles = [];
-    
-    // Reset UI
-    hidePauseOverlay();
-    
-    // Prepare fresh game state
+    // Re-prepare the game
     await this.prepareGame();
     
-    console.log('[ColourRushMode] Ready for countdown');
+    // Note: Parent game.js will handle countdown via startCountdown()
+    // and then call startGame() on this instance
   }
   
   /**
@@ -253,34 +285,37 @@ export class ColourRushMode {
   endGame() {
     console.log('[ColourRushMode] Ending game...');
     
+    // Cleanup resources first
     this.cleanup();
 
-    // Simple final score display
+    // Calculate final stats
+    const finalScore = this.totalScore;
+    const accuracy = this.totalPops > 0 
+      ? Math.round((this.correctPops / this.totalPops) * 100)
+      : 0;
+
+    // ✅ FIX #8: Use consistent goToMainMenu import
     showMessageBox(
       "Time's Up!",
-      `Final Score: ${this.totalScore} points`,
+      `Final Score: ${finalScore} points\nAccuracy: ${accuracy}%`,
       [{ 
         label: 'Main Menu', 
-        action: () => {
-          if (typeof goToMainMenu === 'function') {
-            goToMainMenu();
-          } else {
-            // Fallback
-            import('./game.js').then(module => module.goToMainMenu());
-          }
-        }
+        action: () => goToMainMenu()
       }]
     );
   }
   
   /**
    * Cleanup resources
+   * ✅ FIXED: Matches Classic/Survival cleanup pattern
    */
   cleanup() {
     console.log('[ColourRushMode] Cleaning up...');
     
-    // Update game state
+    // Update game state flags
     this.gameState = 'ended';
+    this.gameActive = false;
+    this.gamePrepared = false;
     this.isPaused = false;
     
     // Reset timer state
@@ -296,6 +331,11 @@ export class ColourRushMode {
     // Clear bubbles
     this.bubbles = [];
     
+    // ✅ FIX #1: Hide canvas manager like Classic/Survival
+    if (this.config?.canvasManager) {
+      this.config.canvasManager.hide();
+    }
+    
     // Cleanup UI components
     if (this.targetColorDisplay) {
       this.targetColorDisplay.hide();
@@ -305,24 +345,29 @@ export class ColourRushMode {
       this.comboMeter.hide();
     }
     
-    // Reset game info display style
+    // ✅ FIX #4: Consolidated gameInfo cleanup (no contradictory settings)
     if (this.config.gameInfo) {
-      this.config.gameInfo.style.display = 'flex'; // Reset to default
+      this.config.gameInfo.style.display = 'none';
       this.config.gameInfo.style.gridTemplateColumns = '';
       this.config.gameInfo.style.gridTemplateRows = '';
       this.config.gameInfo.removeAttribute('data-mode');
     }
     
-    // Reset displays
-    if (this.config.gameInfo) {
-      this.config.gameInfo.style.display = 'none';
-    }
-    
-    // Hide buttons
+    // Hide control buttons
     setBackButtonVisible(false);
     setPauseButtonVisible(false);
     setRestartButtonVisible(false);
     hidePauseOverlay();
+    
+    // ✅ FIX #3: Reset pause button like Classic/Survival
+    if (this.config?.pauseButton) {
+      this.config.pauseButton.reset();
+    }
+    
+    // ✅ FIX #2: Reset spawn state like Classic/Survival
+    BubbleSpawnConfig.resetSpawnState();
+    
+    console.log('[ColourRushMode] Cleanup complete');
   }
   
   /* ===========================================================================
@@ -334,7 +379,8 @@ export class ColourRushMode {
    */
   startGameLoop() {
     const loop = (now) => {
-      if (this.isPaused || this.gameState !== 'playing') return;
+      // Check if game should continue
+      if (this.isPaused || !this.gameActive) return;
       
       const deltaTime = (now - this.lastFrameTime) / 1000;
       this.lastFrameTime = now;
@@ -374,10 +420,10 @@ export class ColourRushMode {
     // Update difficulty
     this.applyDifficultyScaling();
     
-    // Check color change timer
+    // ✅ FIX #7: Check color change timer using performance.now() consistently
     const timeSinceColorChange = now - this.lastColorChangeTime;
     if (timeSinceColorChange >= this.colorChangeInterval) {
-      this.handleColorChange();
+      this.handleColorChange(now);
     }
     
     // Spawn bubbles
@@ -487,8 +533,8 @@ export class ColourRushMode {
         deltaTime, 
         now, 
         'colourrush',
-        null, // showUrgentMessage not used
-        null, // endGame not used
+        false,  // showUrgentMessage not used in Colour Rush
+        () => this.endGame(),
         this.config.canvas
       );
       
@@ -600,8 +646,9 @@ export class ColourRushMode {
   
   /**
    * Handle color change event
+   * ✅ FIX #7: Accept 'now' parameter for consistent timing
    */
-  handleColorChange() {
+  handleColorChange(now) {
     console.log('[ColourRushMode] Color changing...');
     
     // Check for perfect round before changing
@@ -620,8 +667,8 @@ export class ColourRushMode {
     // Select new color
     this.selectNewTargetColor();
     
-    // Reset timer
-    this.lastColorChangeTime = Date.now();
+    // ✅ FIX #7: Reset timer using performance.now()
+    this.lastColorChangeTime = now;
   }
   
   /* ===========================================================================
@@ -654,7 +701,9 @@ export class ColourRushMode {
       if (this.consecutiveCorrect > 0) {
         console.log('[ColourRushMode] Combo broken!');
         this.playSound('comboBreak');
-        this.comboMeter.shatter();
+        if (this.comboMeter) {
+          this.comboMeter.shatter();
+        }
       }
       
       this.consecutiveCorrect = 0;
@@ -700,7 +749,7 @@ export class ColourRushMode {
    * Handle canvas pointer down (tap/click)
    */
   handlePointerDown(x, y) {
-    if (this.gameState !== 'playing' || this.isPaused) return;
+    if (!this.gameActive || this.isPaused) return;
     
     // Check if any bubble was hit
     for (let i = this.bubbles.length - 1; i >= 0; i--) {
@@ -723,7 +772,7 @@ export class ColourRushMode {
    * Handle bubble pop
    */
   handleBubblePop(bubble, x, y) {
-    const wasFullyPopped = bubble.pop(Date.now());
+    const wasFullyPopped = bubble.pop(performance.now());
     
     if (!wasFullyPopped) {
       // Double-tap bubble, first tap
@@ -865,7 +914,7 @@ export class ColourRushMode {
       
       this.colorChangeInterval = config.colorChangeInterval;
       this.speedMultiplier = config.speedMultiplier;
-      this.spawnInterval = config.spawnInterval;
+      this.spawnInterval = config.spawnInterval
       this.bubbleRadiusScale = config.radiusScale;
       
       console.log('[ColourRushMode] Difficulty level:', level);
