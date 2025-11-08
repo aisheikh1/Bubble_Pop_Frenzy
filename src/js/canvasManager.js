@@ -1,4 +1,5 @@
-// src/js/CanvasManager.js
+// src/js/CanvasManager.js 
+// adding comment to place canvas manager back into git
 
 export class CanvasManager {
   constructor(canvasId) {

@@ -2,7 +2,7 @@
 // Main entry point for Bubble Pop Frenzy game
 // Handles initialization, configuration, and game mode selection
 
-import { CanvasManager } from './CanvasManager.js';
+import { CanvasManager } from './canvasManager.js';
 import { showMessageBox, hideMessageBox } from './ui/messageBox.js';
 import { 
   startGame, 
