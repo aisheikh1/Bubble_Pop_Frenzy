@@ -19,6 +19,9 @@ import { BackButton } from './ui/BackButton.js';
 import { RestartButton } from './ui/RestartButton.js';
 import { COLOUR_RUSH_CONFIG, validateConfig as validateColourRushConfig } from './ColourRushConfig.js';
 
+// Import game title management system
+import { initializeAnimatedTitle } from './gametitlemanagement/index.js';
+
 /* ===========================================================================
    CONFIGURATION VALIDATION
    ===========================================================================*/
@@ -214,8 +217,29 @@ window.addEventListener('load', () => {
       handleCanvasPointerDown(x, y);
     });
     
-    // Step 7: Show main menu
-    console.log('[main.js] Step 7: Showing main menu...');
+    // Step 7: Initialize animated game title
+    console.log('[main.js] Step 7: Initializing animated title...');
+    const titleElement = document.querySelector('.game-title');
+    if (titleElement) {
+      try {
+        const cleanupTitle = initializeAnimatedTitle(titleElement, {
+          fallbackOnError: true,
+          respectReducedMotion: true
+        });
+        
+        // Store cleanup function in gameConfig
+        gameConfig.titleCleanup = cleanupTitle;
+        console.log('[main.js] ✅ Animated title initialized successfully');
+      } catch (error) {
+        console.error('[main.js] ❌ Failed to initialize title animation:', error);
+        console.error('[main.js] Error details:', error.stack);
+      }
+    } else {
+      console.warn('[main.js] ⚠️ Title element (.game-title) not found - skipping animation');
+    }
+    
+    // Step 8: Show main menu
+    console.log('[main.js] Step 8: Showing main menu...');
     showMainMenu(gameConfig);
     
     // Store gameConfig for debug utilities

@@ -36,21 +36,83 @@
       .sm\:flex-row { flex-direction: row; }
       .sm\:gap-2 { gap: 0.5rem; }
     }
+    
+    /* Title container styles - occupies top 20% of viewport */
+    .title-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 20vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 100;
+      pointer-events: none;
+      background: linear-gradient(
+        180deg, 
+        rgba(253, 235, 113, 0.95) 0%, 
+        rgba(253, 235, 113, 0.7) 70%,
+        rgba(253, 235, 113, 0) 100%
+      );
+    }
+    
+    /* Adjust body to account for fixed title container */
+    body {
+      padding-top: 20vh;
+    }
+    
+    /* Ensure game container doesn't overlap with title */
+    .game-container {
+      position: relative;
+      min-height: 80vh;
+    }
+    
+    /* Mobile adjustments */
+    @media (max-width: 480px) {
+      .title-container {
+        height: 18vh;
+      }
+      
+      body {
+        padding-top: 18vh;
+      }
+      
+      .game-container {
+        min-height: 82vh;
+      }
+    }
   </style>
   
+  <!-- Google Fonts -->
   <link href="https://fonts.googleapis.com/css2?family=Bangers&family=Fredoka+One&family=Inter:wght@400;700&display=swap" rel="stylesheet">
+  
+  <!-- Main styles -->
   <link rel="stylesheet" href="src/styles/styles.css">
+  
+  <!-- Title animation styles -->
+  <link rel="stylesheet" href="src/styles/title-animations.css">
   
 </head>
 <body>
+  <!-- Fixed title container at top 20% of viewport -->
+  <div class="title-container">
+    <div class="game-header">
+      <h1 class="game-title">BUBBLE POP FRENZY!</h1>
+    </div>
+  </div>
+
+  <!-- Main game container -->
   <div class="game-container">
+    <!-- Message box for menus and dialogs -->
     <div id="messageBox" class="message-box">
       <h2 id="messageTitle"></h2>
       <p id="messageText"></p>
       <div id="buttonContainer" class="flex flex-col gap-3">
-        </div>
+      </div>
     </div>
 
+    <!-- Game info display (score, timer, stats) -->
     <div class="game-info" style="display:none;" id="gameInfo">
       <div id="scoreDisplay">Score: 0</div>
       <div class="flex flex-col sm:flex-row gap-1 sm:gap-2">
@@ -63,14 +125,17 @@
       </div>
     </div>
 
+    <!-- Game canvas -->
     <canvas id="gameCanvas"></canvas>
     
     <!-- Container for control buttons (Back, Pause, Restart) -->
     <div class="below-canvas"></div>
   </div>
 
+  <!-- Main game script -->
   <script type="module" src="src/js/main.js"></script>
   
+  <!-- Service Worker registration -->
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', function() {
