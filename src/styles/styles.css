@@ -55,7 +55,7 @@ canvas.canvas-appearing {
   width: 95vw;
   max-width: 500px;
   height: 90vh;
-  padding: 1.5rem;
+  padding: 0.5rem; /*reduced from 1.5*/
   box-sizing: border-box;
   position: relative;
 }
@@ -279,7 +279,7 @@ canvas.canvas-appearing {
   grid-template-rows: auto auto;
   gap: 0.75rem;
   align-items: start;
-  padding: 0.75rem;
+  padding: 0.25rem; /*reduced from 0.75*/
   width: 100%;
   max-width: 500px;
   box-sizing: border-box;
