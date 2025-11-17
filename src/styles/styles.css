@@ -62,7 +62,7 @@ canvas.canvas-appearing {
 
 /* Flexible area under the canvas that fills all remaining space */
 .below-canvas {
-  flex: 1;                 /* take all leftover height beneath the canvas */
+  flex: 0.5; /*reduce from 1 */                 /* take all leftover height beneath the canvas */
   width: 100%;
   display: flex;           /* center the buttons inside this region */
   align-items: center;     /* vertical center -> equidistant top/bottom of this area */
